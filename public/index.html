@@ -1004,6 +1004,8 @@ function getWeekDates(offset = 0) {
 }
 
 function fmtDate(d) {
+  // Dates are stored as ISO strings in localStorage; coerce back to Date if needed
+  if (!(d instanceof Date)) d = new Date(d);
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
@@ -1346,7 +1348,7 @@ let monthlyFetchInProgress = false;
 const weekFetchedAt = {};
 // Current week is considered fresh for 30 minutes — avoids re-fetching on every page reload
 const CURRENT_WEEK_STALE_MS = 30 * 60 * 1000;
-const DATA_CACHE_KEY = 'uspa_data_cache_v6'; // v6 adds 12-week segment history + WoW tracking
+const DATA_CACHE_KEY = 'uspa_data_cache_v7'; // v7 fixes Date serialization (weekStart/weekEnd rehydration)
 
 // Last-Year monthly cache: same key format but 1 year prior (FY25 — Jul 2024 to Jun 2025)
 // Key "2024-6" holds Jul 2024, paired with FY26 key "2025-6" (Jul 2025)
@@ -3506,13 +3508,16 @@ function loadLiveCacheFromStorage() {
     }
     if (saved.fetchedAt) Object.assign(weekFetchedAt, saved.fetchedAt);
 
-    // Klaviyo weekly data
+    // Klaviyo weekly data — rehydrate weekStart/weekEnd from ISO strings back to Date objects
+    // (JSON.stringify/parse destroys Date objects; they must be reconstructed on load)
     if (saved.klaviyo) {
       Object.keys(saved.klaviyo).forEach(brand => {
         if (!klaviyoDataCache[brand]) klaviyoDataCache[brand] = {};
         Object.entries(saved.klaviyo[brand] || {}).forEach(([offset, data]) => {
           const off = parseInt(offset);
           if (off !== 0 || age < CURRENT_WEEK_STALE_MS) {
+            if (data && typeof data.weekStart === 'string') data.weekStart = new Date(data.weekStart);
+            if (data && typeof data.weekEnd   === 'string') data.weekEnd   = new Date(data.weekEnd);
             klaviyoDataCache[brand][off] = data;
           }
         });
@@ -3648,10 +3653,19 @@ function restoreSettings() {
 }
 function saveSettings() {
   config.apiKey = document.getElementById('windsorApiKey').value.trim();
+  // Snapshot current account names BEFORE overwriting so we can detect changes
+  const prevKlaviyoAccounts = JSON.stringify(config.windsorKlaviyoAccounts);
+
   // Windsor Klaviyo account name matching (per country)
   config.windsorKlaviyoAccounts.au = (document.getElementById('wklavAU')?.value || '').trim();
   config.windsorKlaviyoAccounts.uk = (document.getElementById('wklavUK')?.value || '').trim();
   config.windsorKlaviyoAccounts.pl = (document.getElementById('wklavPL')?.value || '').trim();
+
+  // If any Klaviyo account name changed, wipe cached Klaviyo data so it gets re-fetched
+  if (JSON.stringify(config.windsorKlaviyoAccounts) !== prevKlaviyoAccounts) {
+    BRANDS.forEach(b => { klaviyoDataCache[b.id] = { 0: { claudeRefreshNeeded: true } }; });
+  }
+
   // Per-country Klaviyo API keys (legacy / fallback)
   config.klaviyoApiKeys.au = (document.getElementById('klaviyoApiKeyAU')?.value || '').trim();
   config.klaviyoApiKeys.uk = (document.getElementById('klaviyoApiKeyUK')?.value || '').trim();
@@ -3670,7 +3684,7 @@ function saveSettings() {
   persistSettings(); // save to localStorage
   closeSettings();
   if (config.apiKey || Object.values(config.klaviyoApiKeys).some(k => k)) {
-    fetchData(); // auto-fetch on connect
+    fetchData(false); // auto-fetch on connect (claudeRefreshNeeded flags will force Klaviyo re-fetch)
   } else {
     renderDashboards();
   }
