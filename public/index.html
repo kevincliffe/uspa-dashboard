@@ -772,8 +772,26 @@
     </div>
 
     <div class="sp-section">
-      <div class="sp-section-title">✉ Klaviyo — Email Marketing (per country)</div>
-      <div class="hint" style="margin-bottom:10px">Each store has its own Klaviyo account. Add each country's Private API Key separately.<br>Klaviyo → Settings → API Keys → Create Private Key (Full Access)</div>
+      <div class="sp-section-title">✉ Klaviyo — Windsor Account Matching</div>
+      <div class="hint" style="margin-bottom:10px">Klaviyo data loads via Windsor.ai. Enter each country's Klaviyo <strong>account name exactly as it appears in Windsor</strong> so data is matched to the right brand tab.<br>Windsor → Connected sources → Klaviyo → hover the account to see its name.</div>
+      <div class="sp-field">
+        <label>🇦🇺 AU — Klaviyo account name in Windsor</label>
+        <input type="text" id="wklavAU" placeholder="e.g. U.S. Polo Assn. AU" />
+      </div>
+      <div class="sp-field">
+        <label>🇬🇧 UK — Klaviyo account name in Windsor</label>
+        <input type="text" id="wklavUK" placeholder="e.g. U.S. Polo Assn. UK" />
+      </div>
+      <div class="sp-field">
+        <label>🇵🇱 PL — Klaviyo account name in Windsor</label>
+        <input type="text" id="wklavPL" placeholder="e.g. U.S. Polo Assn. PL" />
+      </div>
+      <button class="sp-btn" onclick="saveSettings()">Save Klaviyo Settings</button>
+    </div>
+
+    <div class="sp-section">
+      <div class="sp-section-title">✉ Klaviyo — Direct API Keys (legacy / fallback)</div>
+      <div class="hint" style="margin-bottom:10px">Only needed if Windsor Klaviyo connector is not available.<br>Klaviyo → Settings → API Keys → Create Private Key (Full Access)</div>
       <div class="sp-field">
         <label>🇦🇺 AU — Australia</label>
         <input type="password" id="klaviyoApiKeyAU" placeholder="pk_…" />
@@ -943,8 +961,37 @@ let config = {
 // ═══════════════════════════════════════════════
 let currentWeekOffset = 0; // 0 = most recent complete Mon–Sun
 
+// Returns a Date whose local year/month/day/getDay() all reflect the current date in
+// Europe/London (GMT in winter, BST=UTC+1 in summer). All week and month calculations
+// are anchored to this so the dashboard always shows London-based dates regardless of
+// where the browser is running.
+function getTodayInLondon() {
+  const d = new Date();
+  const londonStr = d.toLocaleString('en-GB', {
+    timeZone: 'Europe/London',
+    year: 'numeric', month: 'numeric', day: 'numeric'
+  });
+  // en-GB returns "D/M/YYYY"
+  const [day, month, year] = londonStr.split('/').map(Number);
+  return new Date(year, month - 1, day, 0, 0, 0, 0);
+}
+// Returns a Date whose local methods (.getFullYear, .getMonth, .getDate, .getHours etc.)
+// reflect current London date AND time — used for partial-week MTD calculations.
+function getNowInLondon() {
+  const str = new Date().toLocaleString('en-GB', {
+    timeZone: 'Europe/London', hour12: false,
+    year: 'numeric', month: 'numeric', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
+  });
+  // en-GB returns "DD/MM/YYYY, HH:MM:SS"
+  const [datePart, timePart] = str.split(', ');
+  const [day, month, year] = datePart.split('/').map(Number);
+  const [hour, min, sec]   = timePart.split(':').map(Number);
+  return new Date(year, month - 1, day, hour, min, sec, 0);
+}
+
 function getWeekDates(offset = 0) {
-  const today = new Date();
+  const today = getTodayInLondon();
   const dow = today.getDay(); // 0=Sun
   const daysSinceMonday = (dow === 0 ? 6 : dow - 1);
   // Start of current week (Mon)
@@ -960,8 +1007,13 @@ function fmtDate(d) {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+// Use local date components (not toISOString which is UTC) so that dates anchored to
+// London midnight are formatted correctly even during BST (UTC+1).
 function fmtDateISO(d) {
-  return d.toISOString().split('T')[0];
+  const y  = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const dy = String(d.getDate()).padStart(2, '0');
+  return `${y}-${mo}-${dy}`;
 }
 
 function updateWeekDisplay() {
@@ -1561,7 +1613,7 @@ async function fetchMonthLYData(fy26Year, jsMonth) {
 async function fetchFY26Data() {
   if (!config.apiKey || monthlyFetchInProgress) return;
   monthlyFetchInProgress = true;
-  const now    = new Date();
+  const now    = getTodayInLondon();
   const months = getFY26Months().filter(m => new Date(m.year, m.jsMonth, 1) <= now);
 
   const btn = document.getElementById('monthlyFetchBtn');
@@ -2200,7 +2252,7 @@ function renderMonthly() {
   buildMonthlyTabs();
   const fy26Months   = getFY26Months();
   const actuals      = getMonthlyActuals();
-  const now          = new Date();
+  const now          = getTodayInLondon();
   const todayKey     = `${now.getFullYear()}-${now.getMonth()}`;
   const thisMonthFY  = fy26Months.find(m => m.key === todayKey);
   const passedMonths = fy26Months.filter(m => new Date(m.year, m.jsMonth, 1) <= now);
@@ -2508,7 +2560,7 @@ function getActiveData(weekData) {
 }
 
 function getTarget(brandId, key) {
-  const fyIdx = getFYMonthIdx(new Date().getMonth());
+  const fyIdx = getFYMonthIdx(getTodayInLondon().getMonth());
   if (key === 'rev') {
     if (brandId === 'all') return BRANDS.reduce((s, b) => s + (MONTHLY_BUDGETS[b.id]?.rev[fyIdx] || 0), 0);
     return MONTHLY_BUDGETS[brandId]?.rev[fyIdx] ?? 0;
@@ -2523,7 +2575,7 @@ function getTarget(brandId, key) {
 }
 
 function getMTDRevenue(weeks12, brandId) {
-  const now = new Date();
+  const now = getNowInLondon();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   let mtd = 0;
   weeks12.forEach(w => {
@@ -2547,7 +2599,7 @@ function renderEcom(weekData, weeks12) {
 
   const target = getTarget(d.brandId, 'rev');
   const mtdRev = getMTDRevenue(weeks12, d.brandId);
-  const now = new Date();
+  const now = getTodayInLondon();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const dayOfMonth = now.getDate();
   const runRate = Math.round(mtdRev / dayOfMonth * daysInMonth);
@@ -3348,8 +3400,9 @@ async function discoverGA4Accounts() {
   }
 
   // Fetch the last 7 days — small payload, just need account_name column
-  const dateFrom = fmtDateISO(new Date(Date.now() - 7 * 86400000));
-  const dateTo   = fmtDateISO(new Date());
+  const dateTo   = fmtDateISO(getTodayInLondon());
+  const todayMs  = getTodayInLondon().getTime();
+  const dateFrom = fmtDateISO(new Date(todayMs - 7 * 86400000));
   try {
     const url = `https://connectors.windsor.ai/googleanalytics4?api_key=${apiKey}&date_from=${dateFrom}&date_to=${dateTo}&fields=account_name,sessions&_limit=200`;
     const res = await fetch(url);
@@ -3469,7 +3522,7 @@ function loadLiveCacheFromStorage() {
 
     // Monthly FY26 data — historical months never change; current month refreshes if stale
     if (saved.monthly) {
-      const now = new Date();
+      const now = getTodayInLondon();
       const currentKey = `${now.getFullYear()}-${now.getMonth()}`;
       Object.entries(saved.monthly).forEach(([key, data]) => {
         // Always restore past months; restore current month only if cache is fresh enough
@@ -3563,7 +3616,7 @@ async function forceReloadPage() {
     _latestHtml = html;
     const b = document.createElement('div');
     b.id = 'db-update-banner';
-    b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#4f46e5;color:#fff;text-align:center;padding:8px 16px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:12px';
+    b.style.cssText = 'position:fixed;top:58px;left:0;right:0;z-index:9999;background:#4f46e5;color:#fff;text-align:center;padding:8px 16px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:12px';
     b.innerHTML = '🔄 Dashboard updated — <button onclick="forceReloadPage()" style="background:#fff;color:#4f46e5;border:none;border-radius:4px;padding:3px 10px;font-weight:700;cursor:pointer">Reload Now</button>';
     document.body.prepend(b);
     const forceBtn = document.getElementById('forceReloadBtn');
@@ -3598,7 +3651,11 @@ function restoreSettings() {
 }
 function saveSettings() {
   config.apiKey = document.getElementById('windsorApiKey').value.trim();
-  // Per-country Klaviyo API keys
+  // Windsor Klaviyo account name matching (per country)
+  config.windsorKlaviyoAccounts.au = (document.getElementById('wklavAU')?.value || '').trim();
+  config.windsorKlaviyoAccounts.uk = (document.getElementById('wklavUK')?.value || '').trim();
+  config.windsorKlaviyoAccounts.pl = (document.getElementById('wklavPL')?.value || '').trim();
+  // Per-country Klaviyo API keys (legacy / fallback)
   config.klaviyoApiKeys.au = (document.getElementById('klaviyoApiKeyAU')?.value || '').trim();
   config.klaviyoApiKeys.uk = (document.getElementById('klaviyoApiKeyUK')?.value || '').trim();
   config.klaviyoApiKeys.pl = (document.getElementById('klaviyoApiKeyPL')?.value || '').trim();
@@ -3875,10 +3932,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 3. Pre-populate settings panel inputs with restored values
   ['au','uk','pl'].forEach(id => {
-    const ga4El = document.getElementById(`ga4-${id}`);
-    const klEl  = document.getElementById(`klaviyoApiKey${id.toUpperCase()}`);
-    if (ga4El) ga4El.value = config.ga4Accounts[id] || '';
-    if (klEl)  klEl.value  = config.klaviyoApiKeys[id] || '';
+    const ga4El  = document.getElementById(`ga4-${id}`);
+    const klEl   = document.getElementById(`klaviyoApiKey${id.toUpperCase()}`);
+    const wklEl  = document.getElementById(`wklav${id.toUpperCase()}`);
+    if (ga4El)  ga4El.value  = config.ga4Accounts[id] || '';
+    if (klEl)   klEl.value   = config.klaviyoApiKeys[id] || '';
+    if (wklEl)  wklEl.value  = config.windsorKlaviyoAccounts[id] || '';
   });
 
   // 4. Load persisted data cache from localStorage (avoids re-fetching on every reload)
