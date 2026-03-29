@@ -3570,9 +3570,11 @@ function closeSettings() {
 // fetch() AJAX requests bypass server-side HTML caches even when page navigations are cached.
 // When a change is detected, a banner appears. Force Reload uses the same mechanism.
 // ────────────────────────────────────────────────────────────────────────────
-let _latestHtml   = null;
-let _sourceUrl    = location.href.split('?')[0];
-const _buildMark  = document.documentElement.outerHTML.length; // fingerprint of current build
+let _updateAvailable = false;
+let _sourceUrl       = location.href.split('?')[0];
+// Fingerprint the current build by embedding a hash of the file length at load time.
+// The poller compares fetched content length vs this to detect new deploys.
+let _buildSize = null; // set lazily on first successful poll
 
 async function _fetchFresh() {
   try {
@@ -3585,24 +3587,10 @@ async function _fetchFresh() {
   } catch(e) { return null; }
 }
 
-function _applyHtml(html) {
-  try {
-    document.open('text/html', 'replace');
-    document.write(html);
-    document.close();
-  } catch(e) {
-    // Fallback: blob URL (avoids document.write restrictions)
-    const blob = new Blob([html], { type: 'text/html' });
-    location.href = URL.createObjectURL(blob);
-  }
-}
-
-async function forceReloadPage() {
+// Always reload via URL navigation — avoids document.write() which is blocked in modern Chrome
+function forceReloadPage() {
   const btn = document.getElementById('forceReloadBtn');
   if (btn) { btn.textContent = '⟳ Loading…'; btn.disabled = true; }
-  // If poller already fetched a fresh copy, apply it directly
-  if (_latestHtml) { _applyHtml(_latestHtml); return; }
-  // Otherwise navigate to the same URL with a timestamp to force-bypass all caches
   const sep = _sourceUrl.includes('?') ? '&' : '?';
   location.replace(_sourceUrl + sep + '_r=' + Date.now());
 }
@@ -3611,14 +3599,23 @@ async function forceReloadPage() {
 (function startUpdatePoller() {
   setInterval(async () => {
     const html = await _fetchFresh();
-    if (!html || html.length === _buildMark) return;
+    if (!html) return;
+    // On first successful poll, record the current build size as baseline
+    if (_buildSize === null) { _buildSize = html.length; return; }
+    // Subsequent polls: different length = new deploy available
+    if (html.length === _buildSize) return;
     if (document.getElementById('db-update-banner')) return;
-    _latestHtml = html;
     const b = document.createElement('div');
     b.id = 'db-update-banner';
-    b.style.cssText = 'position:fixed;top:58px;left:0;right:0;z-index:9999;background:#4f46e5;color:#fff;text-align:center;padding:8px 16px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:12px';
+    // Insert in DOM flow between nav and week-bar — no position:fixed so it doesn't overlap anything
+    b.style.cssText = 'background:#4f46e5;color:#fff;text-align:center;padding:8px 16px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:12px';
     b.innerHTML = '🔄 Dashboard updated — <button onclick="forceReloadPage()" style="background:#fff;color:#4f46e5;border:none;border-radius:4px;padding:3px 10px;font-weight:700;cursor:pointer">Reload Now</button>';
-    document.body.prepend(b);
+    const nav = document.querySelector('nav.nav');
+    if (nav && nav.nextSibling) {
+      nav.parentNode.insertBefore(b, nav.nextSibling);
+    } else {
+      document.body.prepend(b);
+    }
     const forceBtn = document.getElementById('forceReloadBtn');
     if (forceBtn) forceBtn.style.background = '#4f46e5';
   }, 20000);
@@ -3943,13 +3940,21 @@ document.addEventListener('DOMContentLoaded', () => {
   // 4. Load persisted data cache from localStorage (avoids re-fetching on every reload)
   loadLiveCacheFromStorage();
 
-  // 5. UK Klaviyo baked-in data — only set if not already loaded from storage
-  if (!klaviyoDataCache.uk?.[0]) {
-    klaviyoDataCache.uk[0] = INITIAL_KLAVIYO_DATA;
+  // 5. UK Klaviyo baked-in data — store at the correct week offset based on the data's weekStart
+  //    (not hardcoded [0] which would show last-week data on the current-week tab)
+  {
+    const { start: currentMon } = getWeekDates(0);
+    const initialMon = INITIAL_KLAVIYO_DATA.weekStart;
+    const initialOffset = -Math.round((currentMon.getTime() - initialMon.getTime()) / (7 * 86400000));
+    if (!klaviyoDataCache.uk?.[initialOffset]) {
+      klaviyoDataCache.uk[initialOffset] = INITIAL_KLAVIYO_DATA;
+    }
+    // For the actual current week, ensure UK is also marked for Windsor refresh if not cached
+    if (!klaviyoDataCache.uk?.[0]) {
+      klaviyoDataCache.uk[0] = { claudeRefreshNeeded: true };
+    }
   }
-  // AU/PL: Klaviyo API cannot be called directly from the browser (CORS restriction).
-  // Mark these as needing a Claude-side refresh so the UI shows a clear message
-  // instead of a loading spinner that never resolves.
+  // AU/PL: mark current week as needing Windsor refresh
   if (!klaviyoDataCache.au?.[0]) {
     klaviyoDataCache.au[0] = { claudeRefreshNeeded: true };
   }
