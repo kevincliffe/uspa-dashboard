@@ -672,6 +672,29 @@
           <div id="kl-segChartsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px"></div>
         </div>
       </div>
+      <!-- List Growth — 12-Week Rolling (UK only) -->
+      <div id="kl-listGrowthSection" style="margin-top:14px;display:none">
+        <div class="chart-card" style="padding:16px">
+          <div class="chart-title" style="margin-bottom:2px">📈 List Growth — 12 Week Rolling</div>
+          <div class="chart-subtitle">Weekly new subscribers vs unsubscribes · UK Klaviyo account</div>
+          <div class="chart-container" style="height:220px;margin-top:12px">
+            <canvas id="kl-listGrowthChart"></canvas>
+          </div>
+          <div style="margin-top:14px;overflow-x:auto">
+            <table style="width:100%;font-size:12px;border-collapse:collapse">
+              <thead>
+                <tr style="border-bottom:2px solid #e2e8f0">
+                  <th style="text-align:left;padding:6px 8px;color:#64748b;font-weight:600">Week of</th>
+                  <th style="text-align:right;padding:6px 8px;color:#10b981;font-weight:600">New Subscribers</th>
+                  <th style="text-align:right;padding:6px 8px;color:#ef4444;font-weight:600">Unsubscribes</th>
+                  <th style="text-align:right;padding:6px 8px;color:#6366f1;font-weight:600">Net Change</th>
+                </tr>
+              </thead>
+              <tbody id="kl-listGrowthTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div id="klaviyoConnectHint" style="margin-top:18px;display:none">
@@ -1307,6 +1330,23 @@ const SEGMENT_HISTORY = {
   ],
 };
 
+// UK Klaviyo list growth history — 12 weeks of weekly subscribe/unsubscribe counts
+// Fetched via Klaviyo MCP (metric IDs: VbUm7n = Subscribed, VnAkKp = Unsubscribed)
+const SUBSCRIBE_HISTORY_UK = [
+  { weekStart: '2026-01-05', subs: 4698, unsubs: 1727 },
+  { weekStart: '2026-01-12', subs: 3801, unsubs: 1530 },
+  { weekStart: '2026-01-19', subs: 3229, unsubs: 1513 },
+  { weekStart: '2026-01-26', subs: 3563, unsubs: 1320 },
+  { weekStart: '2026-02-02', subs: 2503, unsubs: 1388 },
+  { weekStart: '2026-02-09', subs: 2138, unsubs: 2319 },
+  { weekStart: '2026-02-16', subs: 1365, unsubs: 1504 },
+  { weekStart: '2026-02-23', subs: 1616, unsubs: 1164 },
+  { weekStart: '2026-03-02', subs: 1906, unsubs: 1075 },
+  { weekStart: '2026-03-09', subs: 1992, unsubs: 1298 },
+  { weekStart: '2026-03-16', subs: 2048, unsubs: 1003 },
+  { weekStart: '2026-03-23', subs: 2666, unsubs: 1446 },
+];
+
 // /googleanalytics4 endpoint: sessions only
 // CVR is calculated as Shopify orders ÷ GA4 sessions — more accurate than GA4's own
 // session_conversion_rate which overcounts due to key event misconfiguration (UK showed 18% !)
@@ -1348,7 +1388,7 @@ let monthlyFetchInProgress = false;
 const weekFetchedAt = {};
 // Current week is considered fresh for 30 minutes — avoids re-fetching on every page reload
 const CURRENT_WEEK_STALE_MS = 30 * 60 * 1000;
-const DATA_CACHE_KEY = 'uspa_data_cache_v7'; // v7 fixes Date serialization (weekStart/weekEnd rehydration)
+const DATA_CACHE_KEY = 'uspa_data_cache_v8'; // v8 enables LY conversion rate (ly.conv from LY GA4 sessions)
 
 // Last-Year monthly cache: same key format but 1 year prior (FY25 — Jul 2024 to Jun 2025)
 // Key "2024-6" holds Jul 2024, paired with FY26 key "2025-6" (Jul 2025)
@@ -1533,7 +1573,9 @@ function attachLYData(tyBrands, lyBrands) {
     tyBrands[b.id].ly = {
       rev:    lyReliable ? ly.rev    : null,
       aov:    lyReliable ? ly.aov    : null,
-      conv:   null,
+      // LY conv = LY Shopify orders / LY GA4 sessions — computed by aggregateToBrands.
+      // Require both reliable Shopify AND GA4 (hasGA4) to avoid garbage values.
+      conv:   lyReliable && ly?.hasGA4 ? ly.conv : null,
       orders: lyReliable ? ly.orders : null,
       gSpend: ly?.gSpend ?? 0,
       mSpend: ly?.mSpend ?? 0,
@@ -2780,12 +2822,18 @@ function renderEcom(weekData, weeks12) {
     type: 'line',
     data: { labels, datasets: [
       { label: 'This Year', data: getSeriesConv(weeks12), borderColor: brandColor, backgroundColor: brandColor + '15', fill: true, tension: 0.35, pointRadius: 3, borderWidth: 2 },
-      { label: 'Last Year', data: weeks12.map(w => activeBrandTab === 'all'
-          ? null  // conv not available
-          : (w.brands.find(b => b.brandId === activeBrandTab)?.ly?.conv ?? null)),
+      { label: 'Last Year', data: weeks12.map(w => {
+          if (activeBrandTab === 'all') {
+            const brandsWithLYConv = w.brands.filter(b => b.ly?.conv !== null && b.ly?.conv !== undefined);
+            return brandsWithLYConv.length
+              ? +( brandsWithLYConv.reduce((s,b) => s + b.ly.conv, 0) / brandsWithLYConv.length ).toFixed(2)
+              : null;
+          }
+          return w.brands.find(b => b.brandId === activeBrandTab)?.ly?.conv ?? null;
+        }),
         borderColor: '#64748b', backgroundColor: 'transparent', tension: 0.35, pointRadius: 2, borderWidth: 2, borderDash: [4,3] }
     ]},
-    options: lineOpts(v => v + '%')
+    options: lineOpts(v => parseFloat(v.toFixed(2)) + '%')
   });
 
   // Spend & ROAS channel charts
@@ -2899,6 +2947,9 @@ function clearKlaviyoUI() {
   const segChartsGrid = document.getElementById('kl-segChartsGrid');
   if (segChartsGrid) segChartsGrid.innerHTML = '';
   destroyChart('kl-splitChart');
+  destroyChart('kl-listGrowthChart');
+  const listGrowthSection = document.getElementById('kl-listGrowthSection');
+  if (listGrowthSection) listGrowthSection.style.display = 'none';
 }
 
 // ── Per-segment 12-week full-size SVG chart ─────────────────────────────────
@@ -3354,6 +3405,107 @@ function renderKlaviyoSection() {
     if (cw) cw.style.display = 'none';
   } else if (segSection) {
     segSection.style.display = 'none';
+  }
+
+  // ── List Growth chart (UK only — baked-in 12-week subscribe/unsubscribe data) ──
+  const listGrowthSection = document.getElementById('kl-listGrowthSection');
+  if (listGrowthSection) {
+    if (klaviyoActiveBrand === 'uk') {
+      listGrowthSection.style.display = '';
+      destroyChart('kl-listGrowthChart');
+      const lgLabels = SUBSCRIBE_HISTORY_UK.map(w => {
+        const d = new Date(w.weekStart + 'T00:00:00');
+        return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      });
+      const canvas = document.getElementById('kl-listGrowthChart');
+      if (canvas) {
+        charts['kl-listGrowthChart'] = new Chart(canvas.getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: lgLabels,
+            datasets: [
+              {
+                label: 'New Subscribers',
+                data: SUBSCRIBE_HISTORY_UK.map(w => w.subs),
+                backgroundColor: '#10b98166',
+                borderColor: '#10b981',
+                borderWidth: 1,
+                borderRadius: 3,
+                order: 1,
+              },
+              {
+                label: 'Unsubscribes',
+                data: SUBSCRIBE_HISTORY_UK.map(w => w.unsubs),
+                backgroundColor: '#ef444466',
+                borderColor: '#ef4444',
+                borderWidth: 1,
+                borderRadius: 3,
+                order: 2,
+              },
+              {
+                label: 'Net Change',
+                data: SUBSCRIBE_HISTORY_UK.map(w => w.subs - w.unsubs),
+                type: 'line',
+                borderColor: '#6366f1',
+                backgroundColor: 'transparent',
+                borderWidth: 2,
+                pointRadius: 3,
+                pointBackgroundColor: '#6366f1',
+                tension: 0.3,
+                order: 0,
+              }
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { display: true, position: 'top', labels: { font: { size: 11 }, boxWidth: 12 } },
+              tooltip: {
+                callbacks: {
+                  label: ctx => ` ${ctx.dataset.label}: ${ctx.raw.toLocaleString('en-GB')}`
+                }
+              }
+            },
+            scales: {
+              x: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 } } },
+              y: {
+                grid: { color: '#f1f5f9' },
+                ticks: { font: { size: 10 }, callback: v => v.toLocaleString('en-GB') },
+                beginAtZero: true
+              }
+            }
+          }
+        });
+      }
+      // Table rows
+      const lgTbody = document.getElementById('kl-listGrowthTable');
+      if (lgTbody) {
+        const totalSubs   = SUBSCRIBE_HISTORY_UK.reduce((s, w) => s + w.subs, 0);
+        const totalUnsubs = SUBSCRIBE_HISTORY_UK.reduce((s, w) => s + w.unsubs, 0);
+        const totalNet    = totalSubs - totalUnsubs;
+        lgTbody.innerHTML = SUBSCRIBE_HISTORY_UK.map(w => {
+          const d   = new Date(w.weekStart + 'T00:00:00');
+          const lbl = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+          const net = w.subs - w.unsubs;
+          const netCol  = net >= 0 ? '#10b981' : '#ef4444';
+          const netSign = net >= 0 ? '+' : '';
+          return `<tr style="border-bottom:1px solid #f1f5f9">
+            <td style="padding:5px 8px;color:#64748b">${lbl}</td>
+            <td style="padding:5px 8px;text-align:right;color:#10b981;font-weight:600">${w.subs.toLocaleString('en-GB')}</td>
+            <td style="padding:5px 8px;text-align:right;color:#ef4444;font-weight:600">${w.unsubs.toLocaleString('en-GB')}</td>
+            <td style="padding:5px 8px;text-align:right;color:${netCol};font-weight:700">${netSign}${net.toLocaleString('en-GB')}</td>
+          </tr>`;
+        }).join('') + `<tr style="border-top:2px solid #e2e8f0;background:#f8fafc">
+          <td style="padding:6px 8px;font-weight:700;color:#1e293b">12-Week Total</td>
+          <td style="padding:6px 8px;text-align:right;color:#10b981;font-weight:700">${totalSubs.toLocaleString('en-GB')}</td>
+          <td style="padding:6px 8px;text-align:right;color:#ef4444;font-weight:700">${totalUnsubs.toLocaleString('en-GB')}</td>
+          <td style="padding:6px 8px;text-align:right;color:${totalNet>=0?'#10b981':'#ef4444'};font-weight:700">${(totalNet>=0?'+':'')+totalNet.toLocaleString('en-GB')}</td>
+        </tr>`;
+      }
+    } else {
+      listGrowthSection.style.display = 'none';
+      destroyChart('kl-listGrowthChart');
+    }
   }
 }
 
