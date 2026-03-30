@@ -1057,8 +1057,12 @@ function changeWeek(dir) {
   currentWeekOffset += dir;
   updateWeekDisplay();
   const needWindsor = config.apiKey && !liveDataCache[currentWeekOffset];
-  // Windsor Klaviyo is needed if Windsor is connected and any brand still has claudeRefreshNeeded
-  const needKlaviyo = (config.apiKey && BRANDS.some(b => klaviyoDataCache[b.id]?.[currentWeekOffset]?.claudeRefreshNeeded)) ||
+  // Windsor Klaviyo is needed if: (a) any brand has claudeRefreshNeeded, OR
+  // (b) any brand's cache entry came from SEGMENT_HISTORY only (no Windsor campaign/flow data yet)
+  const needKlaviyo = (config.apiKey && BRANDS.some(b => {
+    const kl = klaviyoDataCache[b.id]?.[currentWeekOffset];
+    return !kl || kl.claudeRefreshNeeded || kl.fromSegmentHistory;
+  })) ||
     BRANDS.some(b => config.klaviyoApiKeys[b.id] && !klaviyoDataCache[b.id]?.[currentWeekOffset]);
   if (needWindsor || needKlaviyo) {
     fetchData(); // auto-fetch live data for weeks not yet in cache
@@ -3986,10 +3990,11 @@ async function fetchData(force = false) {
       klaviyoDataCache[b.id][currentWeekOffset]?.fetchError ||
       klaviyoDataCache[b.id][currentWeekOffset]?.noRevenue)
   ) : [];
-  // Windsor Klaviyo is pending if any brand still shows claudeRefreshNeeded
-  const windsorKlaviyoPending = config.apiKey && BRANDS.some(b =>
-    klaviyoDataCache[b.id]?.[currentWeekOffset]?.claudeRefreshNeeded
-  );
+  // Windsor Klaviyo is pending if any brand has claudeRefreshNeeded OR only segment-history data (no Windsor campaigns/flows yet)
+  const windsorKlaviyoPending = config.apiKey && BRANDS.some(b => {
+    const kl = klaviyoDataCache[b.id]?.[currentWeekOffset];
+    return kl?.claudeRefreshNeeded || kl?.fromSegmentHistory;
+  });
 
   if (hasCachedWeek && !force) {
     const lastFetch = weekFetchedAt[currentWeekOffset] || 0;
