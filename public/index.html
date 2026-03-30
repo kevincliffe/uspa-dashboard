@@ -192,6 +192,24 @@
 </head>
 <body>
 
+<!-- ══════════════════ PASSWORD GATE ══════════════════ -->
+<div id="passwordGate" style="display:none;position:fixed;inset:0;background:#0f172a;z-index:9999;display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif">
+  <div style="background:#1e293b;border:1px solid #334155;border-radius:16px;padding:40px 48px;width:360px;box-shadow:0 25px 50px rgba(0,0,0,0.5);text-align:center">
+    <div style="font-size:32px;margin-bottom:8px">🔒</div>
+    <h2 style="color:#f1f5f9;font-size:20px;font-weight:600;margin:0 0 6px">US Polo Assn Dashboard</h2>
+    <p style="color:#94a3b8;font-size:14px;margin:0 0 28px">Enter password to continue</p>
+    <input id="pwInput" type="password" placeholder="Password" autocomplete="current-password"
+      style="width:100%;box-sizing:border-box;padding:12px 16px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#f1f5f9;font-size:15px;outline:none;margin-bottom:12px"
+      onkeydown="if(event.key==='Enter')checkPassword()">
+    <button onclick="checkPassword()"
+      style="width:100%;padding:12px;background:#6366f1;border:none;border-radius:8px;color:#fff;font-size:15px;font-weight:600;cursor:pointer">
+      Unlock
+    </button>
+    <p id="pwError" style="color:#f87171;font-size:13px;margin:12px 0 0;display:none">Incorrect password</p>
+  </div>
+</div>
+<div id="mainContent" style="display:none">
+
 <!-- ══════════════════ NAV ══════════════════ -->
 <nav class="nav">
   <div class="nav-logo">US Polo <span>Assn</span></div>
@@ -4200,6 +4218,42 @@ document.addEventListener('DOMContentLoaded', () => {
     renderDashboards();
   }
 });
+</script>
+</div><!-- /mainContent -->
+
+<script>
+(function() {
+  const PW_HASH = 'cbbf6d9b2020936801de507f0d16eccf90232cc48da1caedc2d77731f2e2b49c';
+  const SESSION_KEY = 'uspa_auth';
+
+  async function sha256(str) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+  }
+
+  window.checkPassword = async function() {
+    const val = document.getElementById('pwInput').value;
+    const hash = await sha256(val);
+    if (hash === PW_HASH) {
+      sessionStorage.setItem(SESSION_KEY, '1');
+      document.getElementById('passwordGate').style.display = 'none';
+      document.getElementById('mainContent').style.display = '';
+    } else {
+      document.getElementById('pwError').style.display = 'block';
+      document.getElementById('pwInput').value = '';
+      document.getElementById('pwInput').focus();
+    }
+  };
+
+  if (sessionStorage.getItem(SESSION_KEY) === '1') {
+    document.getElementById('passwordGate').style.display = 'none';
+    document.getElementById('mainContent').style.display = '';
+  } else {
+    document.getElementById('passwordGate').style.display = 'flex';
+    document.getElementById('mainContent').style.display = 'none';
+    setTimeout(() => document.getElementById('pwInput').focus(), 50);
+  }
+})();
 </script>
 </body>
 </html>
