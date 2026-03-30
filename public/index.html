@@ -1337,7 +1337,7 @@ const SEGMENT_HISTORY = {
 // UK Klaviyo list growth history — 12 weeks of weekly subscribe/unsubscribe counts
 // Fetched via Klaviyo MCP (metric IDs: VbUm7n = Subscribed, VnAkKp = Unsubscribed)
 // Baked-in 12-week subscribe/unsubscribe history per brand.
-// UK data was fetched via Klaviyo MCP. AU/PL are fetched live (see fetchSubscribeHistory).
+// UK: Klaviyo MCP (Jan 5–Mar 23 2026). AU/PL: Windsor.ai subscribed/unsubscribed fields (same period).
 const SUBSCRIBE_HISTORY = {
   uk: [
     { weekStart: '2026-01-05', subs: 4698, unsubs: 1727 },
@@ -1353,66 +1353,37 @@ const SUBSCRIBE_HISTORY = {
     { weekStart: '2026-03-16', subs: 2048, unsubs: 1003 },
     { weekStart: '2026-03-23', subs: 2666, unsubs: 1446 },
   ],
+  au: [
+    { weekStart: '2026-01-05', subs: 1743, unsubs: 159 },
+    { weekStart: '2026-01-12', subs: 1630, unsubs: 197 },
+    { weekStart: '2026-01-19', subs: 1208, unsubs: 186 },
+    { weekStart: '2026-01-26', subs:  939, unsubs: 158 },
+    { weekStart: '2026-02-02', subs: 1108, unsubs: 143 },
+    { weekStart: '2026-02-09', subs: 1095, unsubs: 148 },
+    { weekStart: '2026-02-16', subs:  986, unsubs: 138 },
+    { weekStart: '2026-02-23', subs: 1122, unsubs: 112 },
+    { weekStart: '2026-03-02', subs:  879, unsubs: 130 },
+    { weekStart: '2026-03-09', subs:  951, unsubs:  60 },
+    { weekStart: '2026-03-16', subs: 1150, unsubs:  46 },
+    { weekStart: '2026-03-23', subs: 1402, unsubs:  36 },
+  ],
+  pl: [
+    { weekStart: '2026-01-05', subs: 686, unsubs: 27 },
+    { weekStart: '2026-01-12', subs: 578, unsubs: 49 },
+    { weekStart: '2026-01-19', subs: 557, unsubs: 49 },
+    { weekStart: '2026-01-26', subs: 513, unsubs: 50 },
+    { weekStart: '2026-02-02', subs: 325, unsubs: 38 },
+    { weekStart: '2026-02-09', subs: 207, unsubs: 30 },
+    { weekStart: '2026-02-16', subs: 171, unsubs: 33 },
+    { weekStart: '2026-02-23', subs: 230, unsubs: 15 },
+    { weekStart: '2026-03-02', subs: 195, unsubs: 25 },
+    { weekStart: '2026-03-09', subs: 295, unsubs: 20 },
+    { weekStart: '2026-03-16', subs: 431, unsubs: 23 },
+    { weekStart: '2026-03-23', subs: 416, unsubs: 21 },
+  ],
 };
-// Runtime cache for live-fetched AU/PL subscribe history: brandId → array or 'loading'|'error:msg'
+// Runtime cache for current-week subscribe data fetched via Windsor: brandId → {subs,unsubs}
 const subscribeHistoryCache = {};
-
-// Fetches 12-week subscribe/unsubscribe weekly totals for a brand via its direct Klaviyo API key.
-// Results are stored in subscribeHistoryCache[brandId] then renderKlaviyoSection() is called again.
-async function fetchSubscribeHistory(brandId) {
-  if (subscribeHistoryCache[brandId]) return; // already fetched or in progress
-  const key = config.klaviyoApiKeys?.[brandId];
-  if (!key) { subscribeHistoryCache[brandId] = 'nokey'; return; }
-
-  subscribeHistoryCache[brandId] = 'loading';
-  try {
-    const hdrs = { 'Authorization': `Klaviyo-API-Key ${key}`, 'revision': '2024-10-15', 'content-type': 'application/json' };
-
-    // 1. Discover metric IDs for this account
-    const mRes = await fetch('https://a.klaviyo.com/api/metrics/?filter=equals(integration.name,\'Klaviyo\')&fields[metric]=name', { headers: hdrs });
-    if (!mRes.ok) throw new Error(`metrics ${mRes.status}`);
-    const mData = await mRes.json();
-    let subsId = null, unsubsId = null;
-    (mData.data || []).forEach(m => {
-      const n = m.attributes.name.toLowerCase();
-      if (n.includes('subscribed to email')) subsId = m.id;
-      if (n.includes('unsubscribed from email')) unsubsId = m.id;
-    });
-    if (!subsId || !unsubsId) throw new Error('metric IDs not found');
-
-    // 2. Fetch weekly aggregates for the past 12 weeks (Mon 5 Jan → Mon 30 Mar 2026)
-    const fetchAgg = async (metricId) => {
-      const r = await fetch('https://a.klaviyo.com/api/metric-aggregates/', {
-        method: 'POST', headers: hdrs,
-        body: JSON.stringify({ data: { type: 'metric-aggregate', attributes: {
-          metric_id: metricId, measurements: ['count'], interval: 'week', page_size: 500,
-          filter: ['greater-than(datetime,2026-01-05T00:00:00)', 'less-than(datetime,2026-03-30T00:00:00)'],
-          timezone: 'Europe/London',
-        }}}),
-      });
-      if (!r.ok) throw new Error(`agg ${r.status}`);
-      return r.json();
-    };
-    const [sRes, uRes] = await Promise.all([fetchAgg(subsId), fetchAgg(unsubsId)]);
-
-    // Parse: dates array + data[0].measurements.count array
-    const sDates  = sRes.data?.attributes?.dates  || [];
-    const sCounts = sRes.data?.attributes?.data?.[0]?.measurements?.count || [];
-    const uCounts = uRes.data?.attributes?.data?.[0]?.measurements?.count || [];
-
-    const weeks = sDates.map((dateStr, i) => ({
-      weekStart: dateStr.slice(0, 10), // 'YYYY-MM-DD'
-      subs:   sCounts[i] || 0,
-      unsubs: uCounts[i] || 0,
-    }));
-
-    subscribeHistoryCache[brandId] = weeks;
-    renderKlaviyoSection(); // re-render now that data is available
-  } catch(e) {
-    subscribeHistoryCache[brandId] = `error:${e.message}`;
-    renderKlaviyoSection();
-  }
-}
 
 // /googleanalytics4 endpoint: sessions only
 // CVR is calculated as Shopify orders ÷ GA4 sessions — more accurate than GA4's own
@@ -3487,22 +3458,11 @@ function renderKlaviyoSection() {
     const lgWeeks    = bakedWeeks || (Array.isArray(cached) ? cached : null);
 
     if (!lgWeeks) {
-      // No data yet — trigger a fetch (or show state message)
+      // No baked data available for this brand
       const lgTbody = document.getElementById('kl-listGrowthTable');
       const canvas  = document.getElementById('kl-listGrowthChart');
       if (canvas) canvas.style.display = 'none';
-      if (lgTbody) {
-        if (cached === 'loading') {
-          lgTbody.innerHTML = `<tr><td colspan="4" style="padding:16px;text-align:center;color:#94a3b8;font-size:13px">⟳ Fetching list growth data…</td></tr>`;
-        } else if (typeof cached === 'string' && cached.startsWith('error:')) {
-          lgTbody.innerHTML = `<tr><td colspan="4" style="padding:16px;text-align:center;color:#ef4444;font-size:12px">⚠ ${cached.slice(6)}</td></tr>`;
-        } else if (cached === 'nokey') {
-          lgTbody.innerHTML = `<tr><td colspan="4" style="padding:16px;text-align:center;color:#94a3b8;font-size:13px">Add ${BRANDS.find(b=>b.id===brand)?.name || brand.toUpperCase()} Klaviyo key in ⚙ Settings to load list growth data</td></tr>`;
-        } else {
-          lgTbody.innerHTML = `<tr><td colspan="4" style="padding:16px;text-align:center;color:#94a3b8;font-size:13px">⟳ Loading…</td></tr>`;
-          fetchSubscribeHistory(brand); // trigger async fetch — re-renders when done
-        }
-      }
+      if (lgTbody) lgTbody.innerHTML = `<tr><td colspan="4" style="padding:16px;text-align:center;color:#94a3b8;font-size:13px">No list growth data available for ${BRANDS.find(b=>b.id===brand)?.name || brand.toUpperCase()}</td></tr>`;
     } else {
       // Data available — render chart + table
       const canvas = document.getElementById('kl-listGrowthChart');
