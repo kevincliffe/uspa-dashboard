@@ -3979,10 +3979,16 @@ async function fetchKlaviyoViaWindsor(weekOffset, force = false) {
         } else {
           // Preserve existing segments (e.g. from SEGMENT_HISTORY or direct API)
           // Windsor doesn't return segment-level data so never wipe them
-          const existingSegs = klaviyoDataCache[b.id]?.[weekOffset]?.segments || [];
+          const existingSegs  = klaviyoDataCache[b.id]?.[weekOffset]?.segments || [];
+          // Windsor returns 0 flow revenue for UK — preserve baked/cached flows if Windsor has none
+          const totalFlowRev  = flows.reduce((s, f) => s + (f.statistics?.conversion_value || 0), 0);
+          const existingFlows = klaviyoDataCache[b.id]?.[weekOffset]?.flows || [];
+          const useFlows = (totalFlowRev === 0 && existingFlows.some(f => (f.statistics?.conversion_value || 0) > 0))
+            ? existingFlows  // keep preloaded flows that have revenue
+            : flows;
           klaviyoDataCache[b.id][weekOffset] = {
             weekStart: wS, weekEnd: wE,
-            campaigns: camps, flows: flows, segments: existingSegs,
+            campaigns: camps, flows: useFlows, segments: existingSegs,
             fromWindsor: true,
           };
         }
