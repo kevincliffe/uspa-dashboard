@@ -1340,18 +1340,21 @@ const SEGMENT_HISTORY = {
 // UK: Klaviyo MCP (Jan 5–Mar 23 2026). AU/PL: Windsor.ai subscribed/unsubscribed fields (same period).
 const SUBSCRIBE_HISTORY = {
   uk: [
-    { weekStart: '2026-01-05', subs: 4698, unsubs: 1727 },
-    { weekStart: '2026-01-12', subs: 3801, unsubs: 1530 },
-    { weekStart: '2026-01-19', subs: 3229, unsubs: 1513 },
-    { weekStart: '2026-01-26', subs: 3563, unsubs: 1320 },
-    { weekStart: '2026-02-02', subs: 2503, unsubs: 1388 },
-    { weekStart: '2026-02-09', subs: 2138, unsubs: 2319 },
-    { weekStart: '2026-02-16', subs: 1365, unsubs: 1504 },
-    { weekStart: '2026-02-23', subs: 1616, unsubs: 1164 },
-    { weekStart: '2026-03-02', subs: 1906, unsubs: 1075 },
-    { weekStart: '2026-03-09', subs: 1992, unsubs: 1298 },
-    { weekStart: '2026-03-16', subs: 2048, unsubs: 1003 },
-    { weekStart: '2026-03-23', subs: 2666, unsubs: 1446 },
+    // Source: Windsor.ai (subscribed/unsubscribed fields) — consistent with AU/PL.
+    // Windsor counts email-linked events only; Klaviyo's raw metric also captures
+    // API/admin suppressions (GDPR syncs etc.) which inflated unsub numbers significantly.
+    { weekStart: '2026-01-05', subs: 4843, unsubs: 1494 },
+    { weekStart: '2026-01-12', subs: 3917, unsubs: 1355 },
+    { weekStart: '2026-01-19', subs: 3317, unsubs: 1329 },
+    { weekStart: '2026-01-26', subs: 3707, unsubs: 1139 },
+    { weekStart: '2026-02-02', subs: 2581, unsubs: 1215 },
+    { weekStart: '2026-02-09', subs: 2208, unsubs: 2142 },
+    { weekStart: '2026-02-16', subs: 1427, unsubs: 1348 },
+    { weekStart: '2026-02-23', subs: 1683, unsubs: 1042 },
+    { weekStart: '2026-03-02', subs: 1966, unsubs:  976 },
+    { weekStart: '2026-03-09', subs: 2174, unsubs:  881 },
+    { weekStart: '2026-03-16', subs: 2170, unsubs:  305 },
+    { weekStart: '2026-03-23', subs: 2772, unsubs:  251 },
   ],
   au: [
     { weekStart: '2026-01-05', subs: 1743, unsubs: 159 },
