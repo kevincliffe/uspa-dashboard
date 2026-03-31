@@ -34,36 +34,36 @@
     .nav-tab:hover { color: #fff; background: #1e293b; }
     .nav-tab.active { color: #fff; background: #3b82f6; }
     .nav-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
-    /* Alerts */
+    /* Alerts — matches dashboard light theme */
     .alert-brand-block { margin-bottom:28px; }
-    .alert-brand-title { font-size:15px;font-weight:600;color:#f1f5f9;margin:0 0 12px;padding-bottom:8px;border-bottom:1px solid #1e293b; }
+    .alert-brand-title { font-size:15px;font-weight:600;color:#1e293b;margin:0 0 12px;padding-bottom:8px;border-bottom:1px solid #e2e8f0; }
     .alert-channel-grid { display:grid;grid-template-columns:1fr 1fr;gap:14px; }
     @media(max-width:800px){ .alert-channel-grid { grid-template-columns:1fr; } }
-    .alert-channel-card { background:#1e293b;border:1px solid #334155;border-radius:10px;padding:14px 16px; }
-    .alert-channel-title { font-size:12px;font-weight:600;color:#94a3b8;margin:0 0 10px;text-transform:uppercase;letter-spacing:.05em; }
-    .alert-row { display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid #0f172a; }
+    .alert-channel-card { background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,0.06); }
+    .alert-channel-title { font-size:12px;font-weight:600;color:#64748b;margin:0 0 10px;text-transform:uppercase;letter-spacing:.05em; }
+    .alert-row { display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9; }
     .alert-row:last-child { border-bottom:none; }
     .alert-dot { width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0; }
     .alert-dot.critical { background:#ef4444; }
     .alert-dot.warning  { background:#f59e0b; }
     .alert-dot.info     { background:#3b82f6; }
-    .alert-text { font-size:13px;color:#cbd5e1;line-height:1.4; }
-    .alert-text strong { color:#f1f5f9; }
+    .alert-text { font-size:13px;color:#374151;line-height:1.4; }
+    .alert-text strong { color:#1e293b; }
     .alert-text .metric { color:#94a3b8;font-size:12px; }
-    .alert-none { font-size:13px;color:#4b5563;font-style:italic;padding:8px 0; }
-    .alert-brand-tab { background:#1e293b;border:1px solid #334155;color:#94a3b8;padding:6px 14px;border-radius:6px;font-size:13px;cursor:pointer;transition:all .15s; }
-    .alert-brand-tab:hover { border-color:#64748b;color:#fff; }
-    .alert-brand-tab.active { background:#6366f1;border-color:#6366f1;color:#fff; }
+    .alert-none { font-size:13px;color:#94a3b8;font-style:italic;padding:8px 0; }
+    .alert-brand-tab { background:#fff;border:1px solid #e2e8f0;color:#64748b;padding:6px 14px;border-radius:6px;font-size:13px;cursor:pointer;transition:all .15s;box-shadow:0 1px 2px rgba(0,0,0,0.05); }
+    .alert-brand-tab:hover { border-color:#94a3b8;color:#1e293b; }
+    .alert-brand-tab.active { background:#3b82f6;border-color:#3b82f6;color:#fff;box-shadow:none; }
     .pm-table { width:100%;border-collapse:collapse;font-size:12px; }
-    .pm-table th { color:#64748b;font-weight:500;padding:6px 10px;text-align:right;border-bottom:1px solid #1e293b;white-space:nowrap; }
+    .pm-table th { color:#64748b;font-weight:500;padding:6px 10px;text-align:right;border-bottom:1px solid #e2e8f0;white-space:nowrap;background:#f8fafc; }
     .pm-table th:first-child { text-align:left; }
-    .pm-table td { padding:6px 10px;border-bottom:1px solid #0f172a;color:#cbd5e1;text-align:right;white-space:nowrap; }
-    .pm-table td:first-child { text-align:left;color:#f1f5f9;max-width:280px;overflow:hidden;text-overflow:ellipsis; }
-    .pm-table tr.alert-critical td { background:rgba(239,68,68,0.08); }
-    .pm-table tr.alert-warning  td { background:rgba(245,158,11,0.08); }
-    .pm-table tr:hover td { background:#1e293b; }
-    .pm-badge-crit { background:#ef4444;color:#fff;font-size:10px;padding:1px 5px;border-radius:3px;margin-left:4px; }
-    .pm-badge-warn { background:#f59e0b;color:#000;font-size:10px;padding:1px 5px;border-radius:3px;margin-left:4px; }
+    .pm-table td { padding:7px 10px;border-bottom:1px solid #f1f5f9;color:#374151;text-align:right;white-space:nowrap; }
+    .pm-table td:first-child { text-align:left;color:#1e293b;max-width:260px;overflow:hidden;text-overflow:ellipsis; }
+    .pm-table tr.alert-critical td { background:rgba(239,68,68,0.05); }
+    .pm-table tr.alert-warning  td { background:rgba(245,158,11,0.05); }
+    .pm-table tr:hover td { background:#f8fafc; }
+    .pm-badge-crit { background:#ef4444;color:#fff;font-size:10px;padding:1px 6px;border-radius:3px;margin-left:3px; }
+    .pm-badge-warn { background:#f59e0b;color:#fff;font-size:10px;padding:1px 6px;border-radius:3px;margin-left:3px; }
     .nav-btn { background: none; border: 1px solid #334155; border-radius: 6px; padding: 6px 12px; color: #94a3b8; font-size: 12px; font-weight: 500; cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 6px; }
     .nav-btn:hover { border-color: #64748b; color: #fff; }
     .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #64748b; }
@@ -994,7 +994,7 @@
     <!-- Header row -->
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
       <div>
-        <h2 style="margin:0;font-size:20px;color:#f1f5f9">⚠ Paid Media — Campaign Monitor</h2>
+        <h2 style="margin:0;font-size:20px;color:#1e293b">⚠ Paid Media — Campaign Monitor</h2>
         <p style="margin:4px 0 0;color:#64748b;font-size:13px">Meta & Google Ads · all brands · alerts highlighted</p>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -3738,7 +3738,7 @@ function renderAlerts(data) {
   const T  = ALERT_THRESHOLDS;
   const bf = alertsBrandFilter;
 
-  let html = `<div style="font-size:12px;color:#475569;margin-bottom:20px">Period: ${dateFrom} → ${dateTo}</div>`;
+  let html = `<div style="font-size:12px;color:#94a3b8;margin-bottom:20px">Period: ${dateFrom} → ${dateTo}</div>`;
 
   for (const [brandKey, brand] of Object.entries(PAID_MEDIA_ACCOUNTS)) {
     if (bf !== 'all' && bf !== brandKey) continue;
@@ -3882,11 +3882,11 @@ function renderAlerts(data) {
       <div class="alert-brand-title">${brand.label}${badge}</div>
       <div style="display:grid;grid-template-columns:1fr;gap:14px">
         <div class="alert-channel-card">
-          <div class="alert-channel-title">📊 Google Ads <span style="color:#475569;font-weight:400;text-transform:none;font-size:11px">(${gadsCamps.length} campaigns · sorted by spend)</span></div>
+          <div class="alert-channel-title">📊 Google Ads <span style="color:#94a3b8;font-weight:400;text-transform:none;font-size:11px">(${gadsCamps.length} campaigns · sorted by spend)</span></div>
           ${gadsTable}
         </div>
         <div class="alert-channel-card">
-          <div class="alert-channel-title">📘 Meta <span style="color:#475569;font-weight:400;text-transform:none;font-size:11px">(${metaCamps.length} campaigns · sorted by spend)</span></div>
+          <div class="alert-channel-title">📘 Meta <span style="color:#94a3b8;font-weight:400;text-transform:none;font-size:11px">(${metaCamps.length} campaigns · sorted by spend)</span></div>
           ${metaTable}
         </div>
       </div>
