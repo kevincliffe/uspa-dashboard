@@ -51,6 +51,19 @@
     .alert-text strong { color:#f1f5f9; }
     .alert-text .metric { color:#94a3b8;font-size:12px; }
     .alert-none { font-size:13px;color:#4b5563;font-style:italic;padding:8px 0; }
+    .alert-brand-tab { background:#1e293b;border:1px solid #334155;color:#94a3b8;padding:6px 14px;border-radius:6px;font-size:13px;cursor:pointer;transition:all .15s; }
+    .alert-brand-tab:hover { border-color:#64748b;color:#fff; }
+    .alert-brand-tab.active { background:#6366f1;border-color:#6366f1;color:#fff; }
+    .pm-table { width:100%;border-collapse:collapse;font-size:12px; }
+    .pm-table th { color:#64748b;font-weight:500;padding:6px 10px;text-align:right;border-bottom:1px solid #1e293b;white-space:nowrap; }
+    .pm-table th:first-child { text-align:left; }
+    .pm-table td { padding:6px 10px;border-bottom:1px solid #0f172a;color:#cbd5e1;text-align:right;white-space:nowrap; }
+    .pm-table td:first-child { text-align:left;color:#f1f5f9;max-width:280px;overflow:hidden;text-overflow:ellipsis; }
+    .pm-table tr.alert-critical td { background:rgba(239,68,68,0.08); }
+    .pm-table tr.alert-warning  td { background:rgba(245,158,11,0.08); }
+    .pm-table tr:hover td { background:#1e293b; }
+    .pm-badge-crit { background:#ef4444;color:#fff;font-size:10px;padding:1px 5px;border-radius:3px;margin-left:4px; }
+    .pm-badge-warn { background:#f59e0b;color:#000;font-size:10px;padding:1px 5px;border-radius:3px;margin-left:4px; }
     .nav-btn { background: none; border: 1px solid #334155; border-radius: 6px; padding: 6px 12px; color: #94a3b8; font-size: 12px; font-weight: 500; cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 6px; }
     .nav-btn:hover { border-color: #64748b; color: #fff; }
     .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #64748b; }
@@ -977,16 +990,17 @@
 
 <!-- ══════════════════ ALERTS VIEW ══════════════════ -->
 <div id="alertsView" class="view">
-  <div style="max-width:1200px;margin:0 auto;padding:20px 0">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+  <div style="max-width:1300px;margin:0 auto;padding:20px 0">
+    <!-- Header row -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
       <div>
-        <h2 style="margin:0;font-size:20px;color:#f1f5f9">⚠ Paid Media Alerts</h2>
-        <p style="margin:4px 0 0;color:#64748b;font-size:13px">Meta & Google Ads — current week · all brands</p>
+        <h2 style="margin:0;font-size:20px;color:#f1f5f9">⚠ Paid Media — Campaign Monitor</h2>
+        <p style="margin:4px 0 0;color:#64748b;font-size:13px">Meta & Google Ads · all brands · alerts highlighted</p>
       </div>
-      <div style="display:flex;gap:10px;align-items:center">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <select id="alertsWeekSel" onchange="loadAlerts()" style="background:#1e293b;border:1px solid #334155;color:#f1f5f9;padding:6px 10px;border-radius:6px;font-size:13px">
           <option value="0">This week</option>
-          <option value="-1">Last week</option>
+          <option value="-1" selected>Last week</option>
           <option value="-2">2 weeks ago</option>
           <option value="-3">3 weeks ago</option>
         </select>
@@ -994,15 +1008,23 @@
       </div>
     </div>
 
+    <!-- Brand filter tabs -->
+    <div style="display:flex;gap:6px;margin-bottom:20px">
+      <button class="alert-brand-tab active" onclick="filterAlertsBrand('all',this)">All Brands</button>
+      <button class="alert-brand-tab" onclick="filterAlertsBrand('uk',this)">🇬🇧 UK</button>
+      <button class="alert-brand-tab" onclick="filterAlertsBrand('au',this)">🇦🇺 AU</button>
+      <button class="alert-brand-tab" onclick="filterAlertsBrand('pl',this)">🇵🇱 PL</button>
+    </div>
+
     <!-- Legend -->
-    <div style="display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap">
-      <span style="font-size:12px;color:#94a3b8;display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:50%;background:#ef4444;display:inline-block"></span>Critical</span>
-      <span style="font-size:12px;color:#94a3b8;display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:50%;background:#f59e0b;display:inline-block"></span>Warning</span>
-      <span style="font-size:12px;color:#94a3b8;display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:50%;background:#3b82f6;display:inline-block"></span>Info</span>
+    <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+      <span style="font-size:12px;color:#94a3b8;display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:2px;background:#ef4444;display:inline-block"></span>Critical</span>
+      <span style="font-size:12px;color:#94a3b8;display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:2px;background:#f59e0b;display:inline-block"></span>Warning</span>
+      <span style="font-size:12px;color:#94a3b8;display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:2px;background:#1e293b;border:1px solid #334155;display:inline-block"></span>Normal</span>
     </div>
 
     <div id="alertsContent">
-      <div style="text-align:center;padding:60px;color:#64748b">Loading alerts…</div>
+      <div style="text-align:center;padding:60px;color:#64748b">Loading…</div>
     </div>
   </div>
 </div>
@@ -3631,16 +3653,16 @@ function renderKlaviyoSection() {
 //  PAID MEDIA ALERTS
 // ═══════════════════════════════════════════════
 const PAID_MEDIA_ACCOUNTS = {
-  uk: { fbId: '969568630116147',  gadsId: '299-594-3743', currency: '£', label: '🇬🇧 UK' },
+  uk: { fbId: '969568630116147',  gadsId: '299-594-3743', currency: '£',  label: '🇬🇧 UK' },
   au: { fbId: '946528194194219',  gadsId: '297-420-8384', currency: 'A$', label: '🇦🇺 AU' },
   pl: { fbId: '1201344435060823', gadsId: '593-536-7582', currency: 'zł', label: '🇵🇱 PL' },
 };
 
-// Thresholds (Google Ads ROAS is in % format: 200 = 2x)
+// Thresholds — Google Ads ROAS is in % format (200 = 2x return)
 const ALERT_THRESHOLDS = {
   gads: {
-    roasCritical: 100,   // < 1x spend return = losing money
-    roasWarning:  200,   // < 2x = low margin
+    roasCritical: 100,  // < 1x = losing money
+    roasWarning:  200,  // < 2x = low margin
     cpcWarning:   { uk: 1.00, au: 1.50, pl: 3.00 },
     cpcCritical:  { uk: 2.00, au: 3.00, pl: 6.00 },
     cpcvWarning:  { uk: 60,   au: 90,   pl: 200  },
@@ -3651,34 +3673,44 @@ const ALERT_THRESHOLDS = {
     cpcCritical: { uk: 0.80, au: 1.20, pl: 4.00 },
     ctrWarning:  0.01,   // < 1%
     ctrCritical: 0.005,  // < 0.5%
-    cpmWarning:  30,
-    cpmCritical: 50,
+    cpmWarning:  { uk: 15, au: 15, pl: 35 },
+    cpmCritical: { uk: 25, au: 25, pl: 55 },
   },
 };
 
 let alertsCache = {};
+let alertsBrandFilter = 'all';
+
+function filterAlertsBrand(brand, btn) {
+  alertsBrandFilter = brand;
+  document.querySelectorAll('.alert-brand-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  // Re-render cached data with new filter
+  const weekOffset = parseInt(document.getElementById('alertsWeekSel')?.value || '-1');
+  const cacheKey = `alerts_${weekOffset}`;
+  if (alertsCache[cacheKey]) renderAlerts(alertsCache[cacheKey]);
+}
 
 async function loadAlerts(force = false) {
   if (!config.apiKey) {
     document.getElementById('alertsContent').innerHTML =
-      `<div style="text-align:center;padding:40px;color:#64748b">No Windsor API key set — add it in ⚙ Settings first.</div>`;
+      `<div style="text-align:center;padding:40px;color:#64748b">No Windsor API key — add it in ⚙ Settings first.</div>`;
     return;
   }
 
-  const weekOffset = parseInt(document.getElementById('alertsWeekSel')?.value || '0');
+  const weekOffset = parseInt(document.getElementById('alertsWeekSel')?.value || '-1');
   const cacheKey   = `alerts_${weekOffset}`;
   if (!force && alertsCache[cacheKey]) { renderAlerts(alertsCache[cacheKey]); return; }
 
   document.getElementById('alertsContent').innerHTML =
     `<div style="text-align:center;padding:60px;color:#64748b">Fetching paid media data…</div>`;
 
-  // Compute date range
-  const now   = new Date();
-  const dow   = now.getDay(); // 0=Sun
-  const msSun = now - (dow === 0 ? 6 : dow - 1) * 86400000; // Monday start
+  const now     = new Date();
+  const dow     = now.getDay();
+  const msSun   = now - (dow === 0 ? 6 : dow - 1) * 86400000;
   const wkStart = new Date(msSun + weekOffset * 7 * 86400000);
   const wkEnd   = new Date(+wkStart + 6 * 86400000);
-  const fmt = d => d.toISOString().slice(0, 10);
+  const fmt     = d => d.toISOString().slice(0, 10);
   const dateFrom = fmt(wkStart), dateTo = fmt(wkEnd);
 
   try {
@@ -3686,7 +3718,6 @@ async function loadAlerts(force = false) {
       fetch(`https://connectors.windsor.ai/google_ads?api_key=${config.apiKey}&date_from=${dateFrom}&date_to=${dateTo}&fields=account_id,campaign_name,spend,impressions,clicks,ctr,cpc,conversions,conversion_value,roas,cost_per_conversion&_limit=2000`).then(r => r.json()),
       fetch(`https://connectors.windsor.ai/facebook?api_key=${config.apiKey}&date_from=${dateFrom}&date_to=${dateTo}&fields=account_id,campaign_name,spend,impressions,clicks,ctr,cpc,cpm&_limit=2000`).then(r => r.json()),
     ]);
-
     const data = { dateFrom, dateTo, gads: gadRes.data || [], meta: fbRes.data || [] };
     alertsCache[cacheKey] = data;
     renderAlerts(data);
@@ -3696,114 +3727,167 @@ async function loadAlerts(force = false) {
   }
 }
 
+function alertLevel(flags) {
+  if (flags.includes('critical')) return 'alert-critical';
+  if (flags.includes('warning'))  return 'alert-warning';
+  return '';
+}
+
 function renderAlerts(data) {
   const { dateFrom, dateTo, gads, meta } = data;
-  const T = ALERT_THRESHOLDS;
+  const T  = ALERT_THRESHOLDS;
+  const bf = alertsBrandFilter;
 
-  function alertRow(level, text, metric) {
-    return `<div class="alert-row">
-      <span class="alert-dot ${level}"></span>
-      <div class="alert-text">${text}${metric ? `<br><span class="metric">${metric}</span>` : ''}</div>
-    </div>`;
-  }
-
-  let html = `<div style="font-size:12px;color:#475569;margin-bottom:16px">Period: ${dateFrom} → ${dateTo}</div>`;
+  let html = `<div style="font-size:12px;color:#475569;margin-bottom:20px">Period: ${dateFrom} → ${dateTo}</div>`;
 
   for (const [brandKey, brand] of Object.entries(PAID_MEDIA_ACCOUNTS)) {
+    if (bf !== 'all' && bf !== brandKey) continue;
     const cur = brand.currency;
 
-    // ── Google Ads ──────────────────────────────────────────────
-    const gadsCampaigns = gads.filter(r => r.account_id === brand.gadsId && (r.spend || 0) > 0);
-    const gadsAlerts = [];
+    // ── Google Ads table ─────────────────────────────────────────
+    const gadsCamps = gads.filter(r => r.account_id === brand.gadsId && (r.spend || 0) > 0)
+      .sort((a,b) => (b.spend||0) - (a.spend||0));
 
-    // Aggregate to campaign level (data already by campaign)
-    for (const c of gadsCampaigns) {
+    let gadsTbody = '';
+    let gadsCritCount = 0, gadsWarnCount = 0;
+
+    for (const c of gadsCamps) {
       const roas = parseFloat(c.roas) || 0;
       const cpc  = parseFloat(c.cpc)  || 0;
       const cpcv = parseFloat(c.cost_per_conversion) || 0;
-      const name = c.campaign_name || 'Unknown';
-      const spendFmt = `${cur}${(+c.spend).toFixed(0)} spend`;
+      const flags = [];
 
-      if (roas === 0) {
-        gadsAlerts.push(alertRow('critical', `<strong>${name}</strong> — zero conversions`, `${spendFmt}, ROAS 0%`));
-      } else if (roas < T.gads.roasCritical) {
-        gadsAlerts.push(alertRow('critical', `<strong>${name}</strong> — ROAS below 1x (losing money)`, `${spendFmt}, ROAS ${roas.toFixed(0)}%`));
-      } else if (roas < T.gads.roasWarning) {
-        gadsAlerts.push(alertRow('warning', `<strong>${name}</strong> — low ROAS`, `${spendFmt}, ROAS ${roas.toFixed(0)}%`));
-      }
+      if (roas === 0 || roas < T.gads.roasCritical)       flags.push('critical');
+      else if (roas < T.gads.roasWarning)                  flags.push('warning');
+      if (cpc  > T.gads.cpcCritical[brandKey])             flags.push('critical');
+      else if (cpc > T.gads.cpcWarning[brandKey])          flags.push('warning');
+      if (cpcv > 0 && cpcv > T.gads.cpcvCritical[brandKey]) flags.push('critical');
+      else if (cpcv > 0 && cpcv > T.gads.cpcvWarning[brandKey]) flags.push('warning');
 
-      if (cpc > T.gads.cpcCritical[brandKey]) {
-        gadsAlerts.push(alertRow('critical', `<strong>${name}</strong> — very high CPC`, `${cur}${cpc.toFixed(2)} CPC`));
-      } else if (cpc > T.gads.cpcWarning[brandKey]) {
-        gadsAlerts.push(alertRow('warning', `<strong>${name}</strong> — high CPC`, `${cur}${cpc.toFixed(2)} CPC`));
-      }
+      const level = alertLevel(flags);
+      if (flags.includes('critical')) gadsCritCount++;
+      else if (flags.includes('warning')) gadsWarnCount++;
 
-      if (cpcv > 0 && cpcv > T.gads.cpcvCritical[brandKey]) {
-        gadsAlerts.push(alertRow('critical', `<strong>${name}</strong> — very high cost/conversion`, `${cur}${cpcv.toFixed(0)} per conv`));
-      } else if (cpcv > 0 && cpcv > T.gads.cpcvWarning[brandKey]) {
-        gadsAlerts.push(alertRow('warning', `<strong>${name}</strong> — high cost/conversion`, `${cur}${cpcv.toFixed(0)} per conv`));
-      }
+      const roasBadge = roas === 0
+        ? `<span class="pm-badge-crit">0x</span>`
+        : roas < T.gads.roasCritical ? `<span class="pm-badge-crit">${(roas/100).toFixed(1)}x</span>`
+        : roas < T.gads.roasWarning  ? `<span class="pm-badge-warn">${(roas/100).toFixed(1)}x</span>`
+        : `${(roas/100).toFixed(1)}x`;
+
+      const cpcBadge = cpc > T.gads.cpcCritical[brandKey]
+        ? `<span class="pm-badge-crit">${cur}${cpc.toFixed(2)}</span>`
+        : cpc > T.gads.cpcWarning[brandKey]
+        ? `<span class="pm-badge-warn">${cur}${cpc.toFixed(2)}</span>`
+        : `${cur}${cpc.toFixed(2)}`;
+
+      const cpcvBadge = !cpcv ? '—'
+        : cpcv > T.gads.cpcvCritical[brandKey] ? `<span class="pm-badge-crit">${cur}${cpcv.toFixed(0)}</span>`
+        : cpcv > T.gads.cpcvWarning[brandKey]  ? `<span class="pm-badge-warn">${cur}${cpcv.toFixed(0)}</span>`
+        : `${cur}${cpcv.toFixed(0)}`;
+
+      gadsTbody += `<tr class="${level}">
+        <td title="${c.campaign_name}">${c.campaign_name}</td>
+        <td>${cur}${(+c.spend).toFixed(0)}</td>
+        <td>${roasBadge}</td>
+        <td>${cpcBadge}</td>
+        <td>${cpcvBadge}</td>
+        <td>${(+(c.conversions||0)).toFixed(1)}</td>
+        <td>${((+(c.ctr||0))*100).toFixed(2)}%</td>
+      </tr>`;
     }
 
-    if (gadsCampaigns.length === 0) {
-      gadsAlerts.push(`<div class="alert-none">No Google Ads spend data found for this period.</div>`);
-    } else if (gadsAlerts.length === 0) {
-      gadsAlerts.push(`<div class="alert-none">✓ All campaigns within normal thresholds.</div>`);
-    }
+    const gadsTable = gadsCamps.length === 0
+      ? `<div class="alert-none">No Google Ads data for this period.</div>`
+      : `<div style="overflow-x:auto"><table class="pm-table">
+          <thead><tr>
+            <th style="text-align:left">Campaign</th>
+            <th>Spend</th><th>ROAS</th><th>CPC</th><th>Cost/Conv</th><th>Conv</th><th>CTR</th>
+          </tr></thead>
+          <tbody>${gadsTbody}</tbody>
+         </table></div>`;
 
-    // ── Meta ─────────────────────────────────────────────────────
-    const metaCampaigns = meta.filter(r => r.account_id === brand.fbId && (r.spend || 0) > 0);
-    const metaAlerts = [];
+    // ── Meta table ───────────────────────────────────────────────
+    const metaCamps = meta.filter(r => r.account_id === brand.fbId && (r.spend || 0) > 0)
+      .sort((a,b) => (b.spend||0) - (a.spend||0));
 
-    for (const c of metaCampaigns) {
+    let metaTbody = '';
+    let metaCritCount = 0, metaWarnCount = 0;
+
+    for (const c of metaCamps) {
       const cpc = parseFloat(c.cpc) || 0;
       const ctr = parseFloat(c.ctr) || 0;
       const cpm = parseFloat(c.cpm) || 0;
-      const name = c.campaign_name || 'Unknown';
-      const spendFmt = `${cur}${(+c.spend).toFixed(0)} spend`;
+      const flags = [];
 
-      if (cpc > T.meta.cpcCritical[brandKey]) {
-        metaAlerts.push(alertRow('critical', `<strong>${name}</strong> — very high CPC`, `${cur}${cpc.toFixed(2)} CPC, ${spendFmt}`));
-      } else if (cpc > T.meta.cpcWarning[brandKey]) {
-        metaAlerts.push(alertRow('warning', `<strong>${name}</strong> — high CPC`, `${cur}${cpc.toFixed(2)} CPC, ${spendFmt}`));
-      }
+      if (cpc > T.meta.cpcCritical[brandKey])           flags.push('critical');
+      else if (cpc > T.meta.cpcWarning[brandKey])        flags.push('warning');
+      if (ctr > 0 && ctr < T.meta.ctrCritical)          flags.push('critical');
+      else if (ctr > 0 && ctr < T.meta.ctrWarning)      flags.push('warning');
+      if (cpm > T.meta.cpmCritical[brandKey])            flags.push('critical');
+      else if (cpm > T.meta.cpmWarning[brandKey])        flags.push('warning');
 
-      if (ctr > 0 && ctr < T.meta.ctrCritical) {
-        metaAlerts.push(alertRow('critical', `<strong>${name}</strong> — very low CTR`, `${(ctr*100).toFixed(2)}% CTR`));
-      } else if (ctr > 0 && ctr < T.meta.ctrWarning) {
-        metaAlerts.push(alertRow('warning', `<strong>${name}</strong> — low CTR`, `${(ctr*100).toFixed(2)}% CTR`));
-      }
+      const level = alertLevel(flags);
+      if (flags.includes('critical')) metaCritCount++;
+      else if (flags.includes('warning')) metaWarnCount++;
 
-      if (cpm > T.meta.cpmCritical[brandKey] || cpm > T.meta.cpmCritical.uk) {
-        metaAlerts.push(alertRow('warning', `<strong>${name}</strong> — high CPM`, `${cur}${cpm.toFixed(2)} CPM`));
-      }
+      const cpcBadge = cpc > T.meta.cpcCritical[brandKey]
+        ? `<span class="pm-badge-crit">${cur}${cpc.toFixed(2)}</span>`
+        : cpc > T.meta.cpcWarning[brandKey]
+        ? `<span class="pm-badge-warn">${cur}${cpc.toFixed(2)}</span>`
+        : `${cur}${cpc.toFixed(2)}`;
+
+      const ctrBadge = ctr < T.meta.ctrCritical
+        ? `<span class="pm-badge-crit">${(ctr*100).toFixed(2)}%</span>`
+        : ctr < T.meta.ctrWarning
+        ? `<span class="pm-badge-warn">${(ctr*100).toFixed(2)}%</span>`
+        : `${(ctr*100).toFixed(2)}%`;
+
+      const cpmBadge = cpm > T.meta.cpmCritical[brandKey]
+        ? `<span class="pm-badge-crit">${cur}${cpm.toFixed(1)}</span>`
+        : cpm > T.meta.cpmWarning[brandKey]
+        ? `<span class="pm-badge-warn">${cur}${cpm.toFixed(1)}</span>`
+        : `${cur}${cpm.toFixed(1)}`;
+
+      metaTbody += `<tr class="${level}">
+        <td title="${c.campaign_name}">${c.campaign_name}</td>
+        <td>${cur}${(+c.spend).toFixed(0)}</td>
+        <td>${cpcBadge}</td>
+        <td>${ctrBadge}</td>
+        <td>${cpmBadge}</td>
+        <td>${(+(c.impressions||0)).toLocaleString()}</td>
+        <td>${(+(c.clicks||0)).toLocaleString()}</td>
+      </tr>`;
     }
 
-    if (metaCampaigns.length === 0) {
-      metaAlerts.push(`<div class="alert-none">No Meta spend data found for this period.</div>`);
-    } else if (metaAlerts.length === 0) {
-      metaAlerts.push(`<div class="alert-none">✓ All campaigns within normal thresholds.</div>`);
-    }
+    const metaTable = metaCamps.length === 0
+      ? `<div class="alert-none">No Meta data for this period.</div>`
+      : `<div style="overflow-x:auto"><table class="pm-table">
+          <thead><tr>
+            <th style="text-align:left">Campaign</th>
+            <th>Spend</th><th>CPC</th><th>CTR</th><th>CPM</th><th>Impressions</th><th>Clicks</th>
+          </tr></thead>
+          <tbody>${metaTbody}</tbody>
+         </table></div>`;
 
-    // ── Summary badge ────────────────────────────────────────────
-    const critCount = [...gadsAlerts, ...metaAlerts].filter(s => s.includes('critical')).length;
-    const warnCount = [...gadsAlerts, ...metaAlerts].filter(s => s.includes('warning')).length;
-    const badge = critCount > 0
-      ? `<span style="background:#ef4444;color:#fff;font-size:11px;padding:2px 7px;border-radius:10px;margin-left:8px">${critCount} critical</span>`
-      : warnCount > 0
-      ? `<span style="background:#f59e0b;color:#000;font-size:11px;padding:2px 7px;border-radius:10px;margin-left:8px">${warnCount} warnings</span>`
-      : `<span style="background:#22c55e;color:#000;font-size:11px;padding:2px 7px;border-radius:10px;margin-left:8px">All clear</span>`;
+    // ── Brand summary badge ──────────────────────────────────────
+    const totalCrit = gadsCritCount + metaCritCount;
+    const totalWarn = gadsWarnCount + metaWarnCount;
+    const badge = totalCrit > 0
+      ? `<span style="background:#ef4444;color:#fff;font-size:11px;padding:2px 7px;border-radius:10px;margin-left:8px">${totalCrit} critical</span>`
+      : totalWarn > 0
+      ? `<span style="background:#f59e0b;color:#000;font-size:11px;padding:2px 7px;border-radius:10px;margin-left:8px">${totalWarn} warnings</span>`
+      : `<span style="background:#22c55e;color:#000;font-size:11px;padding:2px 7px;border-radius:10px;margin-left:8px">✓ All clear</span>`;
 
     html += `<div class="alert-brand-block">
       <div class="alert-brand-title">${brand.label}${badge}</div>
-      <div class="alert-channel-grid">
+      <div style="display:grid;grid-template-columns:1fr;gap:14px">
         <div class="alert-channel-card">
-          <div class="alert-channel-title">📊 Google Ads</div>
-          ${gadsAlerts.join('')}
+          <div class="alert-channel-title">📊 Google Ads <span style="color:#475569;font-weight:400;text-transform:none;font-size:11px">(${gadsCamps.length} campaigns · sorted by spend)</span></div>
+          ${gadsTable}
         </div>
         <div class="alert-channel-card">
-          <div class="alert-channel-title">📘 Meta</div>
-          ${metaAlerts.join('')}
+          <div class="alert-channel-title">📘 Meta <span style="color:#475569;font-weight:400;text-transform:none;font-size:11px">(${metaCamps.length} campaigns · sorted by spend)</span></div>
+          ${metaTable}
         </div>
       </div>
     </div>`;
