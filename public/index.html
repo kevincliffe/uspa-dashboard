@@ -272,8 +272,38 @@
       <span id="statusText">Sample Data</span>
     </div>
     <button class="nav-btn" onclick="openSettings()">⚙ Settings</button>
+    <button class="nav-btn" onclick="openUserManager()">👤 Users</button>
   </div>
 </nav>
+
+<!-- ══════════════════ USER MANAGER MODAL ══════════════════ -->
+<div id="userManagerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:8000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;padding:28px 32px;width:420px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,0.25);font-family:system-ui,sans-serif;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;">
+      <h2 style="margin:0;font-size:16px;font-weight:700;color:#0f172a;">User Management</h2>
+      <button onclick="closeUserManager()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;line-height:1;">×</button>
+    </div>
+
+    <!-- Add new user -->
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-bottom:16px;">
+      <p style="margin:0 0 12px;font-size:13px;font-weight:600;color:#1e293b;">Add New User</p>
+      <input id="umNewEmail" type="email" placeholder="Email address" style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;margin-bottom:10px;outline:none;color:#1e293b;">
+      <button onclick="addNewUser()" id="umAddBtn" style="width:100%;padding:9px;background:#3b82f6;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;">Create Account &amp; Send Invite</button>
+      <p id="umAddMsg" style="display:none;margin:8px 0 0;font-size:12px;text-align:center;"></p>
+    </div>
+
+    <!-- Password reset -->
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-bottom:16px;">
+      <p style="margin:0 0 12px;font-size:13px;font-weight:600;color:#1e293b;">Send Password Reset</p>
+      <input id="umResetEmail" type="email" placeholder="Email address" style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;margin-bottom:10px;outline:none;color:#1e293b;">
+      <button onclick="sendResetEmail()" id="umResetBtn" style="width:100%;padding:9px;background:#64748b;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;">Send Reset Email</button>
+      <p id="umResetMsg" style="display:none;margin:8px 0 0;font-size:12px;text-align:center;"></p>
+    </div>
+
+    <!-- Sign out own account -->
+    <button onclick="firebase.auth().signOut()" style="width:100%;padding:9px;background:none;color:#ef4444;border:1px solid #fca5a5;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;">Sign Out</button>
+  </div>
+</div>
 
 <!-- ══════════════════ WEEK BAR ══════════════════ -->
 <div class="week-bar">
@@ -4596,6 +4626,102 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.textContent = 'Sign In';
         btn.disabled    = false;
       });
+  };
+
+  // ── User Manager ───────────────────────────────────────────────────────────
+  const FIREBASE_API_KEY = 'AIzaSyAN8sa1Lzg63ctpZl7Qa7TaaEavc6lXVKc';
+
+  window.openUserManager = function() {
+    document.getElementById('userManagerModal').style.display = 'flex';
+    document.getElementById('umNewEmail').value = '';
+    document.getElementById('umResetEmail').value = '';
+    ['umAddMsg','umResetMsg'].forEach(id => { document.getElementById(id).style.display='none'; });
+  };
+  window.closeUserManager = function() {
+    document.getElementById('userManagerModal').style.display = 'none';
+  };
+
+  // Close modal on backdrop click
+  document.getElementById('userManagerModal').addEventListener('click', function(e) {
+    if (e.target === this) closeUserManager();
+  });
+
+  // Create a new user via Firebase Auth REST API, then send password reset
+  window.addNewUser = async function() {
+    const email = document.getElementById('umNewEmail').value.trim();
+    const btn   = document.getElementById('umAddBtn');
+    const msg   = document.getElementById('umAddMsg');
+    if (!email) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Creating…';
+    msg.style.display = 'none';
+
+    try {
+      // Generate a random temp password (user will reset via email)
+      const tempPw = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2).toUpperCase() + '!9';
+
+      const res = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password: tempPw, returnSecureToken: false })
+        }
+      );
+      const data = await res.json();
+
+      if (data.error) {
+        const code = data.error.message;
+        msg.style.color = '#ef4444';
+        msg.textContent = code === 'EMAIL_EXISTS' ? 'An account with this email already exists.' : `Error: ${code}`;
+        msg.style.display = 'block';
+      } else {
+        // Account created — now send a password reset so they can set their own
+        await firebase.auth().sendPasswordResetEmail(email);
+        msg.style.color = '#16a34a';
+        msg.textContent = `✓ Account created. Password set-up email sent to ${email}`;
+        msg.style.display = 'block';
+        document.getElementById('umNewEmail').value = '';
+      }
+    } catch(e) {
+      msg.style.color = '#ef4444';
+      msg.textContent = 'Network error — please try again.';
+      msg.style.display = 'block';
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Create Account & Send Invite';
+  };
+
+  // Send a password reset email to an existing user
+  window.sendResetEmail = async function() {
+    const email = document.getElementById('umResetEmail').value.trim();
+    const btn   = document.getElementById('umResetBtn');
+    const msg   = document.getElementById('umResetMsg');
+    if (!email) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+    msg.style.display = 'none';
+
+    try {
+      await firebase.auth().sendPasswordResetEmail(email);
+      msg.style.color = '#16a34a';
+      msg.textContent = `✓ Reset email sent to ${email}`;
+      msg.style.display = 'block';
+      document.getElementById('umResetEmail').value = '';
+    } catch(e) {
+      msg.style.color = '#ef4444';
+      const code = e.code || '';
+      msg.textContent = code === 'auth/user-not-found'
+        ? 'No account found with that email.'
+        : 'Failed to send — check the email address and try again.';
+      msg.style.display = 'block';
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Send Reset Email';
   };
 })();
 </script>
