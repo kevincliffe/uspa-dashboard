@@ -1619,6 +1619,18 @@ async function fetchShopifyRange(dateFrom, dateTo, limit = 5000) {
   return res.json();
 }
 
+// Fetch Meta purchase ROAS per account from dedicated /facebook endpoint.
+// Windsor /all returns null for Meta conversion_value; purchase_roas requires /facebook directly.
+async function fetchMetaRoasRange(dateFrom, dateTo) {
+  if (!config.apiKey) return { data: [] };
+  try {
+    const url = `https://connectors.windsor.ai/facebook?api_key=${config.apiKey}&date_from=${dateFrom}&date_to=${dateTo}&fields=account_id,spend,purchase_roas&_limit=100`;
+    const res = await fetch(url);
+    if (!res.ok) return { data: [] };
+    return res.json();
+  } catch(e) { return { data: [] }; }
+}
+
 // Fetch GA4 sessions & CVR from Windsor.ai
 // Only fires when at least one GA4 account name is configured in Settings
 // Returns { data: [] } silently on error (GA4 not connected is the common case)
@@ -1646,7 +1658,7 @@ async function fetchGA4Range(dateFrom, dateTo, limit = 5000) {
   }
 }
 
-function aggregateToBrands(adsRaw, shopifyRaw, ga4Raw = null) {
+function aggregateToBrands(adsRaw, shopifyRaw, ga4Raw = null, metaRoasRaw = null) {
   // Returns { au: {...}, uk: {...}, pl: {...} } with all metrics in GBP
   // adsRaw    = response from /all endpoint (Google + Meta)
   // shopifyRaw = response from /shopify endpoint (order-level data)
@@ -1694,12 +1706,18 @@ function aggregateToBrands(adsRaw, shopifyRaw, ga4Raw = null) {
     const sAov       = sOrders > 0 ? sRevLocal / sOrders : 0;
 
     // Google ROAS = platform conversion_value / spend (Windsor attribution model)
-    // Meta ROAS = Shopify revenue / Meta spend (Windsor /all doesn't provide Meta purchase value)
-    // Note: both will be lower than native platform reports which use broader attribution windows
-    // (Google Ads Manager: 30-day click; Meta Ads Manager: 7-day click + 1-day view)
     const gRoas = gConvValue > 0 && gSpendLocal > 0 ? +((gConvValue / gSpendLocal)).toFixed(2)
                 : hasShopify && gSpendLocal > 0      ? +((sRevLocal  / gSpendLocal)).toFixed(2) : null;
-    const mRoas = hasShopify && mSpendLocal > 0 ? +((sRevLocal / mSpendLocal)).toFixed(2) : null;
+
+    // Meta ROAS = purchase_roas from dedicated /facebook fetch (omni_purchase action type).
+    // Falls back to Shopify blended if not available.
+    const metaRoasRows  = (metaRoasRaw?.data || []).filter(r => r.account_id === PAID_MEDIA_ACCOUNTS[brand.id]?.fbId);
+    const metaRoasEntry = metaRoasRows.length > 0 && Array.isArray(metaRoasRows[0].purchase_roas)
+      ? (metaRoasRows[0].purchase_roas.find(r => r.action_type === 'omni_purchase') || metaRoasRows[0].purchase_roas[0])
+      : null;
+    const mRoas = metaRoasEntry
+      ? +parseFloat(metaRoasEntry.value).toFixed(2)
+      : hasShopify && mSpendLocal > 0 ? +((sRevLocal / mSpendLocal)).toFixed(2) : null;
     // CPA = ad spend / Shopify orders
     const gCpa  = hasShopify && sOrders > 0 ? Math.round((gSpendLocal / sOrders) * fx) : null;
     const mCpa  = hasShopify && sOrders > 0 ? Math.round((mSpendLocal / sOrders) * fx) : null;
@@ -1902,22 +1920,24 @@ async function fetchWindsor(force = false) {
     const lyWS = new Date(wS); lyWS.setDate(lyWS.getDate() - 364);
     const lyWE = new Date(wE); lyWE.setDate(lyWE.getDate() - 364);
 
-    const [tyAds, tyShopify, tyGA4] = await Promise.all([
+    const [tyAds, tyShopify, tyGA4, tyMetaRoas] = await Promise.all([
       fetchWindsorRange(fmtDateISO(wS), fmtDateISO(wE)),
       fetchShopifyRange(fmtDateISO(wS), fmtDateISO(wE)),
       fetchGA4Range(fmtDateISO(wS), fmtDateISO(wE)),
+      fetchMetaRoasRange(fmtDateISO(wS), fmtDateISO(wE)),
     ]);
-    const [lyAds, lyShopify, lyGA4] = await Promise.all([
+    const [lyAds, lyShopify, lyGA4, lyMetaRoas] = await Promise.all([
       fetchWindsorRange(fmtDateISO(lyWS), fmtDateISO(lyWE)).catch(() => ({data:[]})),
       fetchShopifyRange(fmtDateISO(lyWS), fmtDateISO(lyWE)).catch(() => ({data:[]})),
       fetchGA4Range(fmtDateISO(lyWS), fmtDateISO(lyWE)).catch(() => ({data:[]})),
+      fetchMetaRoasRange(fmtDateISO(lyWS), fmtDateISO(lyWE)).catch(() => ({data:[]})),
     ]);
 
     // Store GA4 raw for renderEcom GA4 connection status
     ga4DataCache[currentWeekOffset] = tyGA4;
 
-    const tyBrands = aggregateToBrands(tyAds, tyShopify, tyGA4);
-    const lyBrands = aggregateToBrands(lyAds, lyShopify, lyGA4);
+    const tyBrands = aggregateToBrands(tyAds, tyShopify, tyGA4, tyMetaRoas);
+    const lyBrands = aggregateToBrands(lyAds, lyShopify, lyGA4, lyMetaRoas);
     if (!tyBrands) return false;
 
     attachLYData(tyBrands, lyBrands);
