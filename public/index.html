@@ -896,6 +896,26 @@
   <div class="sp-body">
 
     <div class="sp-section">
+      <div class="sp-section-title">📊 Meta ROAS — Native Overrides</div>
+      <div class="hint" style="margin-bottom:10px">Windsor's Meta ROAS uses a shorter attribution window than Meta Ads Manager (7-day click + 1-day view). Enter your actual ROAS figures from Meta Ads Manager here to override the Windsor values in the Ecommerce tab. Updated weekly.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+        <div class="sp-field" style="margin:0">
+          <label>🇬🇧 UK Meta ROAS</label>
+          <input type="number" id="metaRoasOverrideUK" placeholder="e.g. 6.5" step="0.1" min="0" style="width:100%" />
+        </div>
+        <div class="sp-field" style="margin:0">
+          <label>🇦🇺 AU Meta ROAS</label>
+          <input type="number" id="metaRoasOverrideAU" placeholder="e.g. 5.2" step="0.1" min="0" style="width:100%" />
+        </div>
+        <div class="sp-field" style="margin:0">
+          <label>🇵🇱 PL Meta ROAS</label>
+          <input type="number" id="metaRoasOverridePL" placeholder="e.g. 7.6" step="0.1" min="0" style="width:100%" />
+        </div>
+      </div>
+      <button class="sp-btn" onclick="saveSettings()">Save Meta ROAS</button>
+    </div>
+
+    <div class="sp-section">
       <div class="sp-section-title">Windsor.ai Connection</div>
       <div class="sp-field">
         <label>API Key</label>
@@ -1128,7 +1148,8 @@ let config = {
     au: { aov: 145, conv: 3.8 },
     uk: { aov: 158, conv: 4.2 },
     pl: { aov: 92,  conv: 3.1 },
-  }
+  },
+  metaRoasOverride: { uk: null, au: null, pl: null }, // Manual Meta Ads Manager ROAS per brand
 };
 
 // ═══════════════════════════════════════════════
@@ -1709,15 +1730,21 @@ function aggregateToBrands(adsRaw, shopifyRaw, ga4Raw = null, metaRoasRaw = null
     const gRoas = gConvValue > 0 && gSpendLocal > 0 ? +((gConvValue / gSpendLocal)).toFixed(2)
                 : hasShopify && gSpendLocal > 0      ? +((sRevLocal  / gSpendLocal)).toFixed(2) : null;
 
-    // Meta ROAS = purchase_roas from dedicated /facebook fetch (omni_purchase action type).
-    // Falls back to Shopify blended if not available.
+    // Meta ROAS — priority order:
+    // 1. Manual override from Settings (Meta Ads Manager native figure)
+    // 2. Windsor /facebook purchase_roas (Windsor attribution model)
+    // 3. Shopify blended fallback
+    const metaRoasOverrideVal = config.metaRoasOverride?.[brand.id] || null;
     const metaRoasRows  = (metaRoasRaw?.data || []).filter(r => r.account_id === PAID_MEDIA_ACCOUNTS[brand.id]?.fbId);
     const metaRoasEntry = metaRoasRows.length > 0 && Array.isArray(metaRoasRows[0].purchase_roas)
       ? (metaRoasRows[0].purchase_roas.find(r => r.action_type === 'omni_purchase') || metaRoasRows[0].purchase_roas[0])
       : null;
-    const mRoas = metaRoasEntry
-      ? +parseFloat(metaRoasEntry.value).toFixed(2)
-      : hasShopify && mSpendLocal > 0 ? +((sRevLocal / mSpendLocal)).toFixed(2) : null;
+    const mRoas = metaRoasOverrideVal !== null
+      ? metaRoasOverrideVal
+      : metaRoasEntry
+        ? +parseFloat(metaRoasEntry.value).toFixed(2)
+        : hasShopify && mSpendLocal > 0 ? +((sRevLocal / mSpendLocal)).toFixed(2) : null;
+    const mRoasIsOverride = metaRoasOverrideVal !== null;
     // CPA = ad spend / Shopify orders
     const gCpa  = hasShopify && sOrders > 0 ? Math.round((gSpendLocal / sOrders) * fx) : null;
     const mCpa  = hasShopify && sOrders > 0 ? Math.round((mSpendLocal / sOrders) * fx) : null;
@@ -1770,7 +1797,7 @@ function aggregateToBrands(adsRaw, shopifyRaw, ga4Raw = null, metaRoasRaw = null
       gCostPerConv, gRoas, gCpa,
       // Meta Ads
       mSpend: Math.round(mSpendLocal * fx), mClicks: Math.round(mClicks),
-      mImpressions: Math.round(mImpressions), mRoas, mCpa,
+      mImpressions: Math.round(mImpressions), mRoas, mRoasIsOverride, mCpa,
     };
   });
   return result;
@@ -2977,8 +3004,10 @@ function renderEcom(weekData, weeks12) {
   setHTML('e-gCpaChg', d.gCpa && d.ly?.gCpa ? chgEl(changePct(d.gCpa, d.ly.gCpa), true) : '<span style="font-size:11px;color:#94a3b8">Shopify needed</span>');
   setText('e-mSpend', fmt.gbpFull(d.mSpend));
   setHTML('e-mSpendChg', chgEl(changePct(d.mSpend, d.ly?.mSpend || d.mSpend), true));
-  setHTML('e-mRoas',  d.mRoas !== null ? fmt.x(d.mRoas)         : '<span style="color:#94a3b8">—</span>');
-  setHTML('e-mRoasChg', d.mRoas && d.ly?.mRoas ? chgEl(changePct(d.mRoas, d.ly.mRoas)) : '<span style="font-size:11px;color:#94a3b8">Shopify needed</span>');
+  setHTML('e-mRoas',  d.mRoas !== null
+    ? fmt.x(d.mRoas) + (d.mRoasIsOverride ? ' <span title="From Meta Ads Manager — set in Settings" style="font-size:10px;background:#1877f2;color:#fff;padding:1px 5px;border-radius:3px;vertical-align:middle;cursor:help">Meta</span>' : '')
+    : '<span style="color:#94a3b8">—</span>');
+  setHTML('e-mRoasChg', d.mRoas && d.ly?.mRoas ? chgEl(changePct(d.mRoas, d.ly.mRoas)) : '<span style="font-size:11px;color:#94a3b8">' + (d.mRoasIsOverride ? 'Manual override' : 'Shopify needed') + '</span>');
   setHTML('e-mCpa',   d.mCpa  !== null ? fmt.gbpFull(d.mCpa)    : '<span style="color:#94a3b8">—</span>');
   setHTML('e-mCpaChg', d.mCpa && d.ly?.mCpa ? chgEl(changePct(d.mCpa, d.ly.mCpa), true) : '<span style="font-size:11px;color:#94a3b8">Shopify needed</span>');
 
@@ -4191,6 +4220,14 @@ function openSettings() {
   if (klAU) klAU.value = config.klaviyoApiKeys.au || '';
   if (klUK) klUK.value = config.klaviyoApiKeys.uk || '';
   if (klPL) klPL.value = config.klaviyoApiKeys.pl || '';
+  // Populate Meta ROAS overrides
+  const mo = config.metaRoasOverride || {};
+  const mUK = document.getElementById('metaRoasOverrideUK');
+  const mAU = document.getElementById('metaRoasOverrideAU');
+  const mPL = document.getElementById('metaRoasOverridePL');
+  if (mUK) mUK.value = mo.uk || '';
+  if (mAU) mAU.value = mo.au || '';
+  if (mPL) mPL.value = mo.pl || '';
   document.getElementById('overlay').classList.add('open');
   document.getElementById('settingsPanel').classList.add('open');
 }
@@ -4302,6 +4339,12 @@ function saveSettings() {
   config.ga4Accounts.au = (document.getElementById('ga4-au')?.value || '').trim();
   config.ga4Accounts.uk = (document.getElementById('ga4-uk')?.value || '').trim();
   config.ga4Accounts.pl = (document.getElementById('ga4-pl')?.value || '').trim();
+  // Meta ROAS native overrides (from Meta Ads Manager)
+  config.metaRoasOverride = {
+    uk: parseFloat(document.getElementById('metaRoasOverrideUK')?.value) || null,
+    au: parseFloat(document.getElementById('metaRoasOverrideAU')?.value) || null,
+    pl: parseFloat(document.getElementById('metaRoasOverridePL')?.value) || null,
+  };
   config.fx.AUD = parseFloat(document.getElementById('fx-aud').value) || 0.527;
   config.fx.PLN = parseFloat(document.getElementById('fx-pln').value) || 0.202;
   BRANDS.forEach(b => {
