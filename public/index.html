@@ -1590,7 +1590,7 @@ const monthlyLYDataCache = {};
 // /all endpoint: Google Ads + Meta Ads only (spend, clicks, impressions)
 const WINDSOR_ADS_FIELDS = [
   'source','date','account_name',
-  'spend','clicks','impressions','orders'
+  'spend','clicks','impressions','orders','conversion_value'
 ].join(',');
 
 // /shopify endpoint: order-level ecommerce data
@@ -1662,21 +1662,23 @@ function aggregateToBrands(adsRaw, shopifyRaw, ga4Raw = null) {
     const accs = BRAND_ACCOUNTS[brand.id];
     const fx   = config.fx[brand.currency];
 
-    // ── Google Ads — spend & clicks ONLY (reliable) ──
-    // NOTE: Google AOV / conversion_rate / orders are NOT used.
-    // Google's metrics include micro-conversions and fractional modelled attribution.
+    // ── Google Ads — spend, clicks, and platform-reported conversion value ──
     const gRows        = adsData.filter(r => r.source === 'google'   && r.account_name === accs.google);
     const gSpendLocal  = gRows.reduce((s, r) => s + (r.spend  || 0), 0);
     const gClicks      = gRows.reduce((s, r) => s + (r.clicks || 0), 0);
     const gImpressions = gRows.reduce((s, r) => s + (r.impressions || 0), 0);
     const gConvs       = gRows.reduce((s, r) => s + (r.orders || 0), 0); // modelled, display only
     const gCostPerConv = gConvs > 0 ? Math.round((gSpendLocal / gConvs) * fx) : 0;
+    // Google ROAS uses platform-reported conversion_value (matches Google Ads reports)
+    const gConvValue   = gRows.reduce((s, r) => s + (r.conversion_value || 0), 0);
 
-    // ── Meta Ads — spend & clicks ONLY ──
+    // ── Meta Ads — spend, clicks, and platform-reported conversion value ──
     const fRows        = adsData.filter(r => r.source === 'facebook' && r.account_name === accs.facebook);
     const mSpendLocal  = fRows.reduce((s, r) => s + (r.spend  || 0), 0);
     const mClicks      = fRows.reduce((s, r) => s + (r.clicks || 0), 0);
     const mImpressions = fRows.reduce((s, r) => s + (r.impressions || 0), 0);
+    // Meta ROAS uses platform-reported conversion_value (matches Meta Ads Manager reports)
+    const mConvValue   = fRows.reduce((s, r) => s + (r.conversion_value || 0), 0);
 
     // ── Shopify — net revenue (incl. shipping, minus refunds), orders, AOV ──
     // Revenue = order_net_sales + order_shipping_price
@@ -1692,9 +1694,11 @@ function aggregateToBrands(adsRaw, shopifyRaw, ga4Raw = null) {
     const sOrders    = sRows.reduce((s, r) => s + (r.order_count   || 0), 0);
     const sAov       = sOrders > 0 ? sRevLocal / sOrders : 0;
 
-    // ROAS = total Shopify revenue / ad spend (blended paid ROAS)
-    const gRoas = hasShopify && gSpendLocal > 0 ? +((sRevLocal / gSpendLocal)).toFixed(2) : null;
-    const mRoas = hasShopify && mSpendLocal > 0 ? +((sRevLocal / mSpendLocal)).toFixed(2) : null;
+    // ROAS = platform-reported conversion value / ad spend (matches native ad reports)
+    // Using platform attribution rather than Shopify revenue to avoid attributing all
+    // channel-agnostic revenue to a single channel.
+    const gRoas = gConvValue > 0 && gSpendLocal > 0 ? +((gConvValue / gSpendLocal)).toFixed(2) : null;
+    const mRoas = mConvValue > 0 && mSpendLocal > 0 ? +((mConvValue / mSpendLocal)).toFixed(2) : null;
     // CPA = ad spend / Shopify orders
     const gCpa  = hasShopify && sOrders > 0 ? Math.round((gSpendLocal / sOrders) * fx) : null;
     const mCpa  = hasShopify && sOrders > 0 ? Math.round((mSpendLocal / sOrders) * fx) : null;
@@ -3707,8 +3711,8 @@ const PAID_MEDIA_ACCOUNTS = {
 // Thresholds — Google Ads ROAS is in % format (200 = 2x return)
 const ALERT_THRESHOLDS = {
   gads: {
-    roasCritical: 100,  // < 1x = losing money
-    roasWarning:  200,  // < 2x = low margin
+    roasCritical: 1,    // < 1x = losing money
+    roasWarning:  2,    // < 2x = low margin
     cpcWarning:   { uk: 1.00, au: 1.50, pl: 3.00 },
     cpcCritical:  { uk: 2.00, au: 3.00, pl: 6.00 },
     cpcvWarning:  { uk: 60,   au: 90,   pl: 200  },
@@ -3798,7 +3802,10 @@ function renderAlerts(data) {
     let gadsCritCount = 0, gadsWarnCount = 0;
 
     for (const c of gadsCamps) {
-      const roas = parseFloat(c.roas) || 0;
+      // Compute ROAS from conversion_value / spend — matches Google Ads reports exactly
+      const convVal = parseFloat(c.conversion_value) || 0;
+      const spend   = parseFloat(c.spend) || 0;
+      const roas    = spend > 0 ? convVal / spend : 0;
       const cpc  = parseFloat(c.cpc)  || 0;
       const cpcv = parseFloat(c.cost_per_conversion) || 0;
       const flags = [];
@@ -3816,9 +3823,9 @@ function renderAlerts(data) {
 
       const roasBadge = roas === 0
         ? `<span class="pm-badge-crit">0x</span>`
-        : roas < T.gads.roasCritical ? `<span class="pm-badge-crit">${(roas/100).toFixed(1)}x</span>`
-        : roas < T.gads.roasWarning  ? `<span class="pm-badge-warn">${(roas/100).toFixed(1)}x</span>`
-        : `${(roas/100).toFixed(1)}x`;
+        : roas < T.gads.roasCritical ? `<span class="pm-badge-crit">${roas.toFixed(1)}x</span>`
+        : roas < T.gads.roasWarning  ? `<span class="pm-badge-warn">${roas.toFixed(1)}x</span>`
+        : `${roas.toFixed(1)}x`;
 
       const cpcBadge = cpc > T.gads.cpcCritical[brandKey]
         ? `<span class="pm-badge-crit">${cur}${cpc.toFixed(2)}</span>`
