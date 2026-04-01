@@ -252,6 +252,22 @@
       Sign In
     </button>
     <p id="authError" style="color:#f87171;font-size:13px;margin:12px 0 0;display:none">Incorrect email or password</p>
+
+    <!-- Forgot password -->
+    <p style="margin:16px 0 0;">
+      <a href="#" onclick="toggleForgotPassword(event)" style="color:#94a3b8;font-size:13px;text-decoration:none;border-bottom:1px solid #475569;">Forgot password?</a>
+    </p>
+    <div id="forgotPwSection" style="display:none;margin-top:14px;background:#0f172a;border:1px solid #334155;border-radius:8px;padding:14px;">
+      <p style="color:#94a3b8;font-size:12px;margin:0 0 10px;">Enter your email and we'll send a reset link.</p>
+      <input id="forgotEmail" type="email" placeholder="Your email address" autocomplete="email"
+        style="width:100%;box-sizing:border-box;padding:10px 14px;background:#1e293b;border:1px solid #334155;border-radius:7px;color:#f1f5f9;font-size:14px;outline:none;margin-bottom:10px"
+        onkeydown="if(event.key==='Enter')sendForgotReset()">
+      <button onclick="sendForgotReset()" id="forgotBtn"
+        style="width:100%;padding:10px;background:#334155;border:none;border-radius:7px;color:#f1f5f9;font-size:14px;font-weight:600;cursor:pointer">
+        Send Reset Email
+      </button>
+      <p id="forgotMsg" style="display:none;font-size:12px;margin:8px 0 0;"></p>
+    </div>
   </div>
 </div>
 <div id="mainContent" style="display:none">
@@ -4626,6 +4642,48 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.textContent = 'Sign In';
         btn.disabled    = false;
       });
+  };
+
+  // ── Forgot Password (sign-in screen) ───────────────────────────────────────
+  window.toggleForgotPassword = function(e) {
+    e.preventDefault();
+    const el = document.getElementById('forgotPwSection');
+    const isHidden = el.style.display === 'none';
+    el.style.display = isHidden ? 'block' : 'none';
+    if (isHidden) {
+      // Pre-fill with email if already typed
+      const emailVal = document.getElementById('authEmail').value.trim();
+      if (emailVal) document.getElementById('forgotEmail').value = emailVal;
+      document.getElementById('forgotEmail').focus();
+    }
+  };
+
+  window.sendForgotReset = async function() {
+    const email = document.getElementById('forgotEmail').value.trim();
+    const btn   = document.getElementById('forgotBtn');
+    const msg   = document.getElementById('forgotMsg');
+    if (!email) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+    msg.style.display = 'none';
+
+    try {
+      await firebase.auth().sendPasswordResetEmail(email);
+      msg.style.color = '#34d399';
+      msg.textContent = '✓ Reset email sent — check your inbox.';
+      msg.style.display = 'block';
+      document.getElementById('forgotEmail').value = '';
+    } catch(e) {
+      msg.style.color = '#f87171';
+      msg.textContent = e.code === 'auth/user-not-found'
+        ? 'No account found with that email.'
+        : 'Failed to send — please try again.';
+      msg.style.display = 'block';
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Send Reset Email';
   };
 
   // ── User Manager ───────────────────────────────────────────────────────────
