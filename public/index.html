@@ -241,17 +241,17 @@
     <div style="font-size:32px;margin-bottom:8px">🔒</div>
     <h2 style="color:#f1f5f9;font-size:20px;font-weight:600;margin:0 0 6px">US Polo Assn Dashboard</h2>
     <p style="color:#94a3b8;font-size:14px;margin:0 0 28px">Sign in to continue</p>
-    <input id="authEmail" type="email" placeholder="Email" autocomplete="email"
-      style="width:100%;box-sizing:border-box;padding:12px 16px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#f1f5f9;font-size:15px;outline:none;margin-bottom:10px"
-      onkeydown="if(event.key==='Enter')document.getElementById('authPassword').focus()">
-    <input id="authPassword" type="password" placeholder="Password" autocomplete="current-password"
-      style="width:100%;box-sizing:border-box;padding:12px 16px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#f1f5f9;font-size:15px;outline:none;margin-bottom:12px"
-      onkeydown="if(event.key==='Enter')firebaseSignIn()">
-    <button id="signInBtn" onclick="firebaseSignIn()"
-      style="width:100%;padding:12px;background:#6366f1;border:none;border-radius:8px;color:#fff;font-size:15px;font-weight:600;cursor:pointer">
-      Sign In
-    </button>
-    <p id="authError" style="color:#f87171;font-size:13px;margin:12px 0 0;display:none">Incorrect email or password</p>
+    <form id="loginForm" onsubmit="firebaseSignIn(event)" autocomplete="on" style="margin:0">
+      <input id="authEmail" type="email" name="email" placeholder="Email" autocomplete="username"
+        style="width:100%;box-sizing:border-box;padding:12px 16px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#f1f5f9;font-size:15px;outline:none;margin-bottom:10px">
+      <input id="authPassword" type="password" name="password" placeholder="Password" autocomplete="current-password"
+        style="width:100%;box-sizing:border-box;padding:12px 16px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#f1f5f9;font-size:15px;outline:none;margin-bottom:12px">
+      <button id="signInBtn" type="submit"
+        style="width:100%;padding:12px;background:#6366f1;border:none;border-radius:8px;color:#fff;font-size:15px;font-weight:600;cursor:pointer">
+        Sign In
+      </button>
+      <p id="authError" style="color:#f87171;font-size:13px;margin:12px 0 0;display:none">Incorrect email or password</p>
+    </form>
 
     <!-- Forgot password -->
     <p style="margin:16px 0 0;">
@@ -4623,7 +4623,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  window.firebaseSignIn = function() {
+  window.firebaseSignIn = function(e) {
+    if (e) e.preventDefault();
     const email    = document.getElementById('authEmail').value.trim();
     const password = document.getElementById('authPassword').value;
     const btn      = document.getElementById('signInBtn');
@@ -4634,6 +4635,10 @@ document.addEventListener('DOMContentLoaded', () => {
     errEl.style.display = 'none';
 
     firebase.auth().signInWithEmailAndPassword(email, password)
+      .then(function() {
+        // Successful — browser password manager will offer to save credentials
+        // because the <form> submit completed without navigation error
+      })
       .catch(function(err) {
         errEl.textContent   = 'Incorrect email or password';
         errEl.style.display = 'block';
