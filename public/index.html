@@ -1903,6 +1903,16 @@ async function fetchFY26Data() {
   const now    = getTodayInLondon();
   const months = getFY26Months().filter(m => new Date(m.year, m.jsMonth, 1) <= now);
 
+  // Always force-refresh the most recently COMPLETED month (the month before today).
+  // It may have been cached mid-month with partial data (e.g. fetched on March 15 then
+  // served stale once April started). Deleting it here triggers a fresh full-month fetch below.
+  const prevMonthYear   = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+  const prevJsMonth     = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+  const prevMonthKey    = `${prevMonthYear}-${prevJsMonth}`;
+  const prevMonthLYKey  = `${prevMonthYear - 1}-${prevJsMonth}`;
+  delete monthlyDataCache[prevMonthKey];
+  delete monthlyLYDataCache[prevMonthLYKey];
+
   const btn = document.getElementById('monthlyFetchBtn');
   const info = document.getElementById('monthlyFetchInfo');
   if (btn) { btn.disabled = true; btn.textContent = '⟳ Fetching…'; }
@@ -2519,10 +2529,13 @@ function getMonthlyActuals() {
     if (data) result[key] = { ...data }; // non-null entry = successfully fetched
   }
 
-  // 2) Supplement with liveDataCache (weekly) for any month not yet covered by monthlyDataCache
+  // 2) Supplement with liveDataCache (weekly) for any month not yet covered by monthlyDataCache.
+  //    Use the week END date (Sunday) as the month key — this correctly handles cross-month weeks:
+  //    e.g. week Mar 30–Apr 5 → end=Apr 5 → keyed to April (not March, which was the old bug).
+  //    e.g. week Feb 23–Mar 1 → end=Mar 1 → keyed to March (not February).
   for (const [wOff, brands] of Object.entries(liveDataCache)) {
-    const { start } = getWeekDates(parseInt(wOff));
-    const key = `${start.getFullYear()}-${start.getMonth()}`;
+    const { end } = getWeekDates(parseInt(wOff));
+    const key = `${end.getFullYear()}-${end.getMonth()}`;
     if (result[key]) continue; // monthly fetch already covers this month
     result[key] = {};
     brands.forEach(b => {
