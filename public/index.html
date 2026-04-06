@@ -743,8 +743,8 @@
         </div>
         <table>
           <thead><tr>
-            <th style="text-align:left;width:38%">Campaign</th>
-            <th>Sends</th><th>Open %</th><th>Click %</th><th>Conv %</th><th>Revenue</th><th>Rev/Send</th>
+            <th style="text-align:left;width:36%">Campaign</th>
+            <th>Date</th><th>Sends</th><th>Open %</th><th>Click %</th><th>Conv %</th><th>Revenue</th><th>Rev/Send</th>
           </tr></thead>
           <tbody id="kl-campTable"></tbody>
         </table>
@@ -3399,7 +3399,8 @@ function renderKlaviyoSection() {
     const id   = c.groupings?.campaign_id || c.campaign_details?.id || '_';
     const name = c.groupings?.campaign_message_name
                || c.campaign_details?.attributes?.name || 'Unknown Campaign';
-    if (!campMap[id]) campMap[id] = { name, recipients: 0, opens: 0, clicks: 0, conversions: 0, revenue: 0 };
+    const st   = c.campaign_details?.attributes?.sendTime || c.campaign_details?.attributes?.scheduledAt || null;
+    if (!campMap[id]) campMap[id] = { name, sendTime: st, recipients: 0, opens: 0, clicks: 0, conversions: 0, revenue: 0 };
     const s = c.statistics || {};
     campMap[id].recipients  += s.recipients         || 0;
     campMap[id].opens       += s.opens_unique        || 0;
@@ -3519,8 +3520,13 @@ function renderKlaviyoSection() {
     });
   }
 
-  // ── Table rows (campaigns & flows — 7 cols) ──
-  const mkRow = (r, isTop = false) => {
+  // ── Table rows (campaigns — 8 cols incl. send date; flows — 7 cols, no date) ──
+  const fmtSendDate = iso => {
+    if (!iso) return '<span style="color:#94a3b8">—</span>';
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  };
+  const mkRow = (r, isTop = false, showDate = false) => {
     const openRate  = r.recipients > 0 ? (r.opens  / r.recipients * 100).toFixed(1) + '%' : '—';
     const clickRate = r.recipients > 0 ? (r.clicks / r.recipients * 100).toFixed(1) + '%' : '—';
     const convRate  = r.recipients > 0 ? (r.conversions / r.recipients * 100).toFixed(2) + '%' : '—';
@@ -3529,16 +3535,19 @@ function renderKlaviyoSection() {
       ? `<strong style="color:${isTop ? '#4c1d95' : 'inherit'}">${fmt.gbpFull(Math.round(r.revenue))}</strong>`
       : '<span style="color:#94a3b8">—</span>';
     const rowClass = isTop ? ' class="kl-highlight-row"' : '';
+    const dateCell = showDate ? `<td style="font-size:11px;color:#64748b;white-space:nowrap">${fmtSendDate(r.sendTime)}</td>` : '';
     return `<tr${rowClass}>
-      <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.name}">
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.name}">
         ${isTop ? '🏆 ' : ''}<span>${r.name}</span>
       </td>
+      ${dateCell}
       <td>${fmt.num(r.recipients)}</td>
       <td>${openRate}</td><td>${clickRate}</td><td>${convRate}</td><td>${rev}</td><td>${rpr}</td>
     </tr>`;
   };
-  const totalRow = (rows, rev) => `<tr class="total-row">
+  const totalRow = (rows, rev, extraCol = false) => `<tr class="total-row">
     <td>Total</td>
+    ${extraCol ? '<td>—</td>' : ''}
     <td>${fmt.num(rows.reduce((s,r)=>s+r.recipients,0))}</td>
     <td>—</td><td>—</td><td>—</td>
     <td><strong>${fmt.gbpFull(Math.round(rev))}</strong></td><td>—</td>
@@ -3547,9 +3556,9 @@ function renderKlaviyoSection() {
   const campTbody = document.getElementById('kl-campTable');
   if (campRows.length > 0) {
     const topCampRev = campRows[0]?.revenue || 0;
-    campTbody.innerHTML = campRows.map((r, i) => mkRow(r, i === 0 && topCampRev > 0)).join('') + totalRow(campRows, campRevTotal);
+    campTbody.innerHTML = campRows.map((r, i) => mkRow(r, i === 0 && topCampRev > 0, true)).join('') + totalRow(campRows, campRevTotal, true);
   } else {
-    campTbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:16px">No campaigns sent this week</td></tr>';
+    campTbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:16px">No campaigns sent this week</td></tr>';
   }
 
   const flowTbody = document.getElementById('kl-flowTable');
