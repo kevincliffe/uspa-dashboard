@@ -4146,8 +4146,16 @@ function saveLiveCacheToStorage() {
         if (!d.fetchError) klToSave[brand][off] = d;
       });
     });
+    // Save the actual Monday start date for each cached week so that on restore we can
+    // verify the offset still refers to the same real-world week (offsets shift when a
+    // new week starts on Monday, making offset=-1 refer to a different week than last session).
+    const weekStarts = {};
+    Object.keys(liveDataCache).forEach(off => {
+      weekStarts[off] = fmtDateISO(getWeekDates(parseInt(off)).start);
+    });
     localStorage.setItem(DATA_CACHE_KEY, JSON.stringify({
       liveData:    liveDataCache,
+      weekStarts:  weekStarts,
       fetchedAt:   weekFetchedAt,
       klaviyo:     klToSave,
       convMetrics: Object.fromEntries(Object.entries(klaviyoConvMetrics).filter(([,v]) => v && v !== 'AUTH_ERROR')), // only save confirmed metric IDs
@@ -4166,10 +4174,17 @@ function loadLiveCacheFromStorage() {
     const age = Date.now() - (saved.savedAt || 0);
     let loaded = false;
 
-    // Weekly Windsor data — past weeks permanent, current week only if fresh
-    if (saved.liveData) {
+    // Weekly Windsor data — past weeks permanent, current week only if fresh.
+    // Validate each offset's stored week start date against today's computed value:
+    // when a new week starts on Monday all relative offsets shift by 1, so offset=-1
+    // from last session now refers to 2 weeks ago — discard any entry whose date doesn't match.
+    // If weekStarts is absent (old cache format), skip ALL weekly data to avoid serving stale.
+    if (saved.liveData && saved.weekStarts) {
       Object.entries(saved.liveData).forEach(([offset, data]) => {
         const off = parseInt(offset);
+        const storedStart   = saved.weekStarts[off];
+        const expectedStart = fmtDateISO(getWeekDates(off).start);
+        if (storedStart !== expectedStart) return; // week rolled over — discard this entry
         if (off !== 0 || age < CURRENT_WEEK_STALE_MS) {
           liveDataCache[off] = data;
           loaded = true;
@@ -4179,12 +4194,19 @@ function loadLiveCacheFromStorage() {
     if (saved.fetchedAt) Object.assign(weekFetchedAt, saved.fetchedAt);
 
     // Klaviyo weekly data — rehydrate weekStart/weekEnd from ISO strings back to Date objects
-    // (JSON.stringify/parse destroys Date objects; they must be reconstructed on load)
+    // (JSON.stringify/parse destroys Date objects; they must be reconstructed on load).
+    // Also validate that the stored weekStart still matches the offset (discard if week rolled over).
     if (saved.klaviyo) {
       Object.keys(saved.klaviyo).forEach(brand => {
         if (!klaviyoDataCache[brand]) klaviyoDataCache[brand] = {};
         Object.entries(saved.klaviyo[brand] || {}).forEach(([offset, data]) => {
           const off = parseInt(offset);
+          // Validate week dates: Klaviyo entries embed weekStart, compare against today's offset
+          if (data?.weekStart) {
+            const storedStart   = typeof data.weekStart === 'string' ? data.weekStart.slice(0, 10) : fmtDateISO(data.weekStart);
+            const expectedStart = fmtDateISO(getWeekDates(off).start);
+            if (storedStart !== expectedStart) return; // week rolled over — discard
+          }
           if (off !== 0 || age < CURRENT_WEEK_STALE_MS) {
             if (data && typeof data.weekStart === 'string') data.weekStart = new Date(data.weekStart);
             if (data && typeof data.weekEnd   === 'string') data.weekEnd   = new Date(data.weekEnd);
