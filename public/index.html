@@ -3521,10 +3521,21 @@ function renderKlaviyoSection() {
   }
 
   // ── Table rows (campaigns — 8 cols incl. send date; flows — 7 cols, no date) ──
-  const fmtSendDate = iso => {
-    if (!iso) return '<span style="color:#94a3b8">—</span>';
-    const d = new Date(iso);
-    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const fmtSendDate = (iso, name) => {
+    // Primary: ISO timestamp from Klaviyo campaign_details.sendTime
+    if (iso) {
+      const d = new Date(iso);
+      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    }
+    // Fallback: parse date from campaign name (format "DD.MM.YYYY - ...")
+    if (name) {
+      const m = name.match(/^(\d{2})\.(\d{2})\.(\d{4})/);
+      if (m) {
+        const d = new Date(+m[3], +m[2] - 1, +m[1]);
+        return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      }
+    }
+    return '<span style="color:#94a3b8">—</span>';
   };
   const mkRow = (r, isTop = false, showDate = false) => {
     const openRate  = r.recipients > 0 ? (r.opens  / r.recipients * 100).toFixed(1) + '%' : '—';
@@ -3535,7 +3546,7 @@ function renderKlaviyoSection() {
       ? `<strong style="color:${isTop ? '#4c1d95' : 'inherit'}">${fmt.gbpFull(Math.round(r.revenue))}</strong>`
       : '<span style="color:#94a3b8">—</span>';
     const rowClass = isTop ? ' class="kl-highlight-row"' : '';
-    const dateCell = showDate ? `<td style="font-size:11px;color:#64748b;white-space:nowrap">${fmtSendDate(r.sendTime)}</td>` : '';
+    const dateCell = showDate ? `<td style="font-size:11px;color:#64748b;white-space:nowrap">${fmtSendDate(r.sendTime, r.name)}</td>` : '';
     return `<tr${rowClass}>
       <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.name}">
         ${isTop ? '🏆 ' : ''}<span>${r.name}</span>
