@@ -1372,6 +1372,12 @@ const INITIAL_KLAVIYO_DATA = {
 // ═══════════════════════════════════════════════
 const SEGMENT_HISTORY = {
   uk: [
+    { weekStart: '2026-03-30', weekEnd: '2026-04-05', segments: [
+      { name: 'Hot_0-30d',                       recipients: 177216, opens: 110682, clicks: 6357, conversions: 263, revenue: 20946.37 },
+      { name: 'Warm_31-90d',                      recipients: 101009, opens:   1157, clicks: 1421, conversions:  31, revenue:  2695.71 },
+      { name: 'Cooling_91-180d',                  recipients:  15301, opens:    391, clicks:  205, conversions:   9, revenue:   578.12 },
+      { name: 'UK U.S. Polo Assn. Master List',   recipients: 185327, opens:  45400, clicks: 1117, conversions:  45, revenue:  3007.95 },
+    ]},
     { weekStart: '2026-03-23', weekEnd: '2026-03-28', segments: [
       { name: 'Hot_0-30d',        recipients: 173548, opens: 102155, clicks:  4350, conversions: 146, revenue:  9837.99 },
       { name: 'Warm_31-90d',      recipients: 105499, opens:   1208, clicks:  1004, conversions:  26, revenue:  1845.66 },
@@ -1414,6 +1420,9 @@ const SEGMENT_HISTORY = {
     ]},
   ],
   au: [
+    { weekStart: '2026-03-30', weekEnd: '2026-04-05', segments: [
+      { name: 'U.S. Polo Assn. Australia Master Email List', recipients: 51789, opens: 21513, clicks: 915, conversions: 41, revenue: 7071.85 },
+    ]},
     { weekStart: '2026-03-23', weekEnd: '2026-03-29', segments: [
       { name: 'Hot_0-30d',                                                recipients: 23318, opens:  9651, clicks: 640, revenue:  4547.15 },
       { name: 'is subscribed to master or 20% list & in NSW region',      recipients:  8761, opens:  2678, clicks:  56, revenue:  1282.35 },
@@ -1468,6 +1477,9 @@ const SEGMENT_HISTORY = {
     ]},
   ],
   pl: [
+    { weekStart: '2026-03-30', weekEnd: '2026-04-05', segments: [
+      { name: 'Newsletter: Website Sign Up', recipients: 35975, opens: 3472, clicks: 565, conversions: 18, revenue: 6050.88 },
+    ]},
     { weekStart: '2026-03-23', weekEnd: '2026-03-29', segments: [
       { name: 'Newsletter: Website Sign Up', recipients: 11744, opens:   914, clicks: 363, revenue:  3797.20 },
     ]},
@@ -1528,6 +1540,7 @@ const SUBSCRIBE_HISTORY = {
     { weekStart: '2026-03-09', subs: 2174, unsubs:  881 },
     { weekStart: '2026-03-16', subs: 2170, unsubs:  305 },
     { weekStart: '2026-03-23', subs: 2772, unsubs:  251 },
+    { weekStart: '2026-03-30', subs: 3412, unsubs:  530 },
   ],
   au: [
     { weekStart: '2026-01-05', subs: 1743, unsubs: 159 },
@@ -1542,6 +1555,7 @@ const SUBSCRIBE_HISTORY = {
     { weekStart: '2026-03-09', subs:  951, unsubs:  60 },
     { weekStart: '2026-03-16', subs: 1150, unsubs:  46 },
     { weekStart: '2026-03-23', subs: 1402, unsubs:  36 },
+    { weekStart: '2026-03-30', subs: 1661, unsubs:  40 },
   ],
   pl: [
     { weekStart: '2026-01-05', subs: 686, unsubs: 27 },
@@ -1556,6 +1570,7 @@ const SUBSCRIBE_HISTORY = {
     { weekStart: '2026-03-09', subs: 295, unsubs: 20 },
     { weekStart: '2026-03-16', subs: 431, unsubs: 23 },
     { weekStart: '2026-03-23', subs: 416, unsubs: 21 },
+    { weekStart: '2026-03-30', subs: 366, unsubs: 24 },
   ],
 };
 // Runtime cache for current-week subscribe data fetched via Windsor: brandId → {subs,unsubs}
