@@ -1589,7 +1589,7 @@ const subscribeHistoryCache = {};
 const WINDSOR_GA4_FIELDS = ['account_name','date','sessions','session_default_channel_group'].join(',');
 // Windsor.ai Klaviyo connector — replaces direct Klaviyo API (which is CORS-blocked in browsers)
 const WINDSOR_KLAVIYO_CAMP_FIELDS = [
-  'account_name','campaign','campaign_id',
+  'account_name','date','campaign','campaign_id',
   'campaign_report_recipients','campaign_report_opens_unique',
   'campaign_report_clicks_unique','campaign_report_conversion_uniques',
   'campaign_report_conversion_value','shopify_revenue',
@@ -3521,21 +3521,10 @@ function renderKlaviyoSection() {
   }
 
   // ── Table rows (campaigns — 8 cols incl. send date; flows — 7 cols, no date) ──
-  const fmtSendDate = (iso, name) => {
-    // Primary: ISO timestamp from Klaviyo campaign_details.sendTime
-    if (iso) {
-      const d = new Date(iso);
-      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-    }
-    // Fallback: parse date from campaign name (format "DD.MM.YYYY - ...")
-    if (name) {
-      const m = name.match(/^(\d{2})\.(\d{2})\.(\d{4})/);
-      if (m) {
-        const d = new Date(+m[3], +m[2] - 1, +m[1]);
-        return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-      }
-    }
-    return '<span style="color:#94a3b8">—</span>';
+  const fmtSendDate = iso => {
+    if (!iso) return '<span style="color:#94a3b8">—</span>';
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   };
   const mkRow = (r, isTop = false, showDate = false) => {
     const openRate  = r.recipients > 0 ? (r.opens  / r.recipients * 100).toFixed(1) + '%' : '—';
@@ -3546,7 +3535,7 @@ function renderKlaviyoSection() {
       ? `<strong style="color:${isTop ? '#4c1d95' : 'inherit'}">${fmt.gbpFull(Math.round(r.revenue))}</strong>`
       : '<span style="color:#94a3b8">—</span>';
     const rowClass = isTop ? ' class="kl-highlight-row"' : '';
-    const dateCell = showDate ? `<td style="font-size:11px;color:#64748b;white-space:nowrap">${fmtSendDate(r.sendTime, r.name)}</td>` : '';
+    const dateCell = showDate ? `<td style="font-size:11px;color:#64748b;white-space:nowrap">${fmtSendDate(r.sendTime)}</td>` : '';
     return `<tr${rowClass}>
       <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.name}">
         ${isTop ? '🏆 ' : ''}<span>${r.name}</span>
@@ -4488,8 +4477,9 @@ async function fetchKlaviyoViaWindsor(weekOffset, force = false) {
       const key = row.campaign_id;
       if (!campByBrand[bid][key]) {
         campByBrand[bid][key] = {
-          groupings: { campaign_id: row.campaign_id, campaign_message_name: row.campaign || 'Unknown Campaign' },
-          statistics: { recipients: 0, opens_unique: 0, clicks_unique: 0, conversion_uniques: 0, conversion_value: 0 },
+          groupings:        { campaign_id: row.campaign_id, campaign_message_name: row.campaign || 'Unknown Campaign' },
+          campaign_details: { attributes: { name: row.campaign || 'Unknown Campaign', sendTime: row.date || null } },
+          statistics:       { recipients: 0, opens_unique: 0, clicks_unique: 0, conversion_uniques: 0, conversion_value: 0 },
         };
       }
       const s = campByBrand[bid][key].statistics;
