@@ -1421,7 +1421,12 @@ const SEGMENT_HISTORY = {
   ],
   au: [
     { weekStart: '2026-03-30', weekEnd: '2026-04-05', segments: [
-      { name: 'U.S. Polo Assn. Australia Master Email List', recipients: 51789, opens: 21513, clicks: 915, conversions: 41, revenue: 7071.85 },
+      // Sources: Windsor campaign totals (AU Klaviyo not directly accessible).
+      // "Up to 50% off Easter Sale" (18,991) → Hot_0-30d; "Harrington Jacket" (16,372) → Warm_31-90d;
+      // "Polo Shirt Guide clone" (16,426) → U.S. Polo Assn. Australia Master Email List
+      { name: 'Hot_0-30d',                                    recipients: 18991, opens:  7151, clicks: 491, conversions: 15, revenue: 2449.60 },
+      { name: 'Warm_31-90d',                                  recipients: 16372, opens:  7303, clicks: 280, conversions: 14, revenue: 2494.25 },
+      { name: 'U.S. Polo Assn. Australia Master Email List',  recipients: 16426, opens:  7059, clicks: 144, conversions: 12, revenue: 2128.00 },
     ]},
     { weekStart: '2026-03-23', weekEnd: '2026-03-29', segments: [
       { name: 'Hot_0-30d',                                                recipients: 23318, opens:  9651, clicks: 640, revenue:  4547.15 },
@@ -2262,7 +2267,7 @@ function updateConnectionBanner(connected, shopifyCount) {
 // ═══════════════════════════════════════════════
 const fmt = {
   gbp: v => '£' + (v >= 1000000 ? (v/1000000).toFixed(2) + 'm'
-              : v >= 1000 ? (v/1000).toFixed(1) + 'k' : v.toLocaleString()),
+              : v >= 1000 ? (v/1000).toFixed(1) + 'k' : Math.round(v).toLocaleString()),
   gbpFull: v => '£' + v.toLocaleString('en-GB'),
   pct: v => (v > 0 ? '+' : '') + v.toFixed(1) + '%',
   x:   v => v.toFixed(2) + 'x',
